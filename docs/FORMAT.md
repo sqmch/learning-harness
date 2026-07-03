@@ -7,6 +7,7 @@ tutor protocol reads/writes and what the study (the bundled UI) renders.
 
 ```
 CLAUDE.md            ← the tutor protocol (the engine)
+AGENTS.md            ← pointer to CLAUDE.md for agents that read the AGENTS.md convention (codex, …)
 COURSE.md            ← generated at onboarding: learner profile, phases, module arc, boss-checks
 curriculum/
   NN-name/           ← one directory per module, numbered

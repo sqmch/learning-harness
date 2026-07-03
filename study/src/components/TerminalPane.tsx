@@ -1,7 +1,8 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
+import { AGENTS, EDITORS, resolveTool, usePrefs, type Prefs, type ToolChoice } from "../prefs";
 
 export function TerminalPane(props: {
   repoRoot: string;
@@ -78,18 +79,26 @@ export function TerminalPane(props: {
     ? `cd "${props.repoRoot.replace(/\\/g, "/")}/curriculum/${props.selectedModuleId}/scaffold"; npm run check`
     : null;
 
+  const [prefs, setPrefs] = usePrefs();
+  const [prefsOpen, setPrefsOpen] = useState(false);
+  const agent = resolveTool(AGENTS, prefs.agent, prefs.agentCustom, AGENTS[0]);
+  const editor = resolveTool(EDITORS, prefs.editor, prefs.editorCustom, EDITORS[0]);
+
   return (
     <aside className="termpane">
       <div className="term-header">
         <span className="term-title">tutor / terminal</span>
         <div className="term-actions">
-          <button onClick={() => type("claude")} title="Launch Claude Code in the repo">
-            launch claude
+          <button
+            onClick={() => type(agent.command)}
+            title={`Launch ${agent.label} — your tutor — in this repo (change agent via ⚙)`}
+          >
+            launch {agent.label}
           </button>
           {props.welcome ? (
             <button
               onClick={() => type("new course", false)}
-              title="Types the onboarding opener — press Enter inside Claude"
+              title="Types the onboarding opener into your agent — press Enter to start the interview that builds this repo's course"
             >
               new course
             </button>
@@ -97,7 +106,7 @@ export function TerminalPane(props: {
             <>
               <button
                 onClick={() => type("start session", false)}
-                title="Types the session opener — press Enter inside Claude"
+                title="Types the session opener into your agent — press Enter to run your recall quiz and continue the current module"
               >
                 start session
               </button>
@@ -111,14 +120,69 @@ export function TerminalPane(props: {
             </>
           )}
           <button
-            onClick={() => type(`code "${props.repoRoot}"`)}
-            title="Open the repo in VS Code — your real editor"
+            onClick={() => type(`${editor.command} "${props.repoRoot}"`)}
+            title={`Open the repo in ${editor.label} — your real editor (change editor via ⚙)`}
           >
             edit
           </button>
+          <button
+            className={prefsOpen ? "term-gear open" : "term-gear"}
+            onClick={() => setPrefsOpen((o) => !o)}
+            title="Choose your agent and editor"
+            aria-label="terminal preferences"
+          >
+            ⚙
+          </button>
         </div>
+        {prefsOpen && <PrefsPopover prefs={prefs} setPrefs={setPrefs} />}
       </div>
       <div className="term-host" ref={hostRef} />
     </aside>
+  );
+}
+
+function PrefsPopover(props: { prefs: Prefs; setPrefs: (p: Prefs) => void }) {
+  const { prefs, setPrefs } = props;
+  const row = (
+    kind: "agent" | "editor",
+    choices: ToolChoice[],
+    value: string,
+    custom: string,
+    placeholder: string,
+  ) => (
+    <div className="term-prefs-row">
+      <label htmlFor={`prefs-${kind}`}>{kind}</label>
+      <select
+        id={`prefs-${kind}`}
+        value={value}
+        onChange={(e) => setPrefs({ ...prefs, [kind]: e.target.value })}
+      >
+        {choices.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.label}
+          </option>
+        ))}
+        <option value="custom">custom…</option>
+      </select>
+      {value === "custom" && (
+        <input
+          value={custom}
+          placeholder={placeholder}
+          spellCheck={false}
+          onChange={(e) => setPrefs({ ...prefs, [`${kind}Custom`]: e.target.value })}
+        />
+      )}
+    </div>
+  );
+  return (
+    <div className="term-prefs">
+      {row("agent", AGENTS, prefs.agent, prefs.agentCustom, "command, e.g. aider")}
+      {row("editor", EDITORS, prefs.editor, prefs.editorCustom, "command, e.g. subl")}
+      <p className="term-prefs-note">
+        Buttons just type into the terminal, so the command must be on your PATH. Claude
+        reads the tutor protocol from <code>CLAUDE.md</code>; codex &amp; friends get it via{" "}
+        <code>AGENTS.md</code>.
+      </p>
+    </div>
   );
 }

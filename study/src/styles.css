@@ -487,6 +487,7 @@ body.dragging .docpane { pointer-events: none; }
 }
 
 .term-header {
+  position: relative; /* anchors the ⚙ prefs popover */
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -521,6 +522,61 @@ body.dragging .docpane { pointer-events: none; }
   background: var(--bg-panel);
 }
 .term-actions button:disabled { opacity: 0.4; cursor: default; }
+
+.term-gear { padding: 4px 7px; }
+.term-gear.open { color: var(--hi); border-color: var(--ink-faint); }
+
+.term-prefs {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 10px;
+  z-index: 30;
+  width: 250px;
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+}
+.term-prefs-row {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: 6px;
+  align-items: center;
+}
+.term-prefs-row label {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-faint);
+}
+.term-prefs-row select,
+.term-prefs-row input {
+  width: 100%;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 4px 6px;
+}
+.term-prefs-row input { grid-column: 2; }
+.term-prefs-note {
+  margin: 0;
+  font-size: 10.5px;
+  line-height: 1.55;
+  color: var(--ink-faint);
+}
+.term-prefs-note code {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-dim);
+}
 
 .term-host { flex: 1; min-height: 0; padding: 8px 4px 8px 10px; }
 .term-host .xterm { height: 100%; }
@@ -606,6 +662,29 @@ body.dragging .docpane { pointer-events: none; }
   color: var(--ink-dim);
   white-space: nowrap;
 }
+.welcome-how { margin: 0 0 28px; }
+.welcome-how-title {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--ink-faint);
+  margin-bottom: 10px;
+}
+.welcome-how ul {
+  margin: 0;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.welcome-how li {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink-dim);
+}
+.welcome-how b { color: var(--ink); font-weight: 600; }
+
 .welcome-foot {
   color: var(--ink-faint);
   font-size: 12.5px;

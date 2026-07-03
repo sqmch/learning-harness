@@ -18,6 +18,9 @@ source course completes its final phase.
       repos. Lab plan: `study/LAB.md`
 - [x] Root `package.json` entry point (`npm install` + `npm run dev`, cross-platform, no
       launcher scripts) and `npm run update` (pulls engine updates from upstream/origin)
+- [x] Agent-agnostic protocol entry: `AGENTS.md` points Codex-convention agents at
+      `CLAUDE.md`; the study's ⚙ prefs pick the agent (claude/codex/gemini/custom) and
+      editor (VS Code/Zed/Cursor/custom) its buttons drive
 
 ## v0.x — while the source course runs (continuous)
 

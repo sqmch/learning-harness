@@ -1,8 +1,8 @@
 # learning-harness *(working name)*
 
 An open-source **learning harness**: a file protocol + tutor rulebook that turns the AI
-subscription you already pay for (Claude Code or a comparable agentic CLI) into a rigorous,
-personal tutor for **learn-by-building** topics.
+subscription you already pay for (Claude Code, Codex, or a comparable agentic CLI) into a
+rigorous, personal tutor for **learn-by-building** topics.
 
 No API keys, no hosted service, no metered costs. You bring your own frontier agent; the
 harness brings the structure that a bare "be my tutor" prompt can never have:
@@ -38,6 +38,8 @@ pretend to be it.
 
 ## How to use it (v0)
 
+You need: `git`, Node 18+, and an agentic CLI you already use (Claude Code, Codex, …).
+
 1. Clone this repo **into a folder named after your course** — one clone per course:
 
    ```
@@ -46,10 +48,12 @@ pretend to be it.
    ```
 
 2. `npm install`, then `npm run dev` (any OS), and open **http://localhost:5173**.
-3. You land on the welcome screen with a live terminal beside it. Click **launch claude**,
-   then **new course** — the tutor interviews you (topic, goals, background, hours/week,
-   what "done" looks like), drafts your course arc, and asks you to review it before
-   building anything. The page becomes your course the moment your first module exists.
+3. You land on the welcome screen with a live terminal beside it. Click **launch** (it types
+   your agent's command — `claude` by default; the ⚙ picker switches it to `codex` or any
+   other CLI), then **new course** — the tutor interviews you (topic, goals, background,
+   hours/week, what "done" looks like), drafts your course arc, and asks you to review it
+   before building anything. The page becomes your course the moment your first module
+   exists.
 4. Every sitting after that: open the study, click **start session**. The tutor runs your
    due recall quiz, teaches, hands you the next build task, and updates your files at close.
 5. Run checks yourself (the **run checks** button, or `npm run check` inside a module's
@@ -61,6 +65,44 @@ agent and say "new course" / "start session"; the UI is a lens, not a dependency
 Everything the tutor knows about you lives in `tutor/` and `curriculum/` in this repo —
 plain markdown and JSON, yours to read, version, and delete. Your course grows *inside your
 clone*; this repo is both the engine and your instance.
+
+## How it works, concretely
+
+**Onboarding** is an interview, not a form: your topic, what "done" looks like (a capability,
+not a vibe), your honest background, the hours you'll really spend. From that the tutor
+drafts `COURSE.md` — the course spine: phases, a module arc, and where the boss-checks
+(phase gates you must genuinely pass) fall — and you review and push back on the arc
+*before* anything gets built.
+
+**A module** is a directory the tutor writes when you reach it — never in advance,
+calibrated to how the previous one actually went:
+
+```
+curriculum/03-rag-pipeline/
+  LESSON.md      ← the teaching: concepts, worked examples, why it's built this way
+  BRIEF.md       ← the build task and its acceptance criteria
+  scaffold/      ← runs, but fails checks — the load-bearing parts are TODO(you) gaps
+  checks/        ← automated tests you run yourself; they grade behavior, never internals
+  hints/         ← sealed: hint-1 nudge → hint-2 approach → hint-3 near-spoiler
+  quiz.md        ← retrieval questions that feed the spaced-repetition bank
+```
+
+Before you ever see a module, the tutor must write a hidden reference solution, prove the
+checks pass on it, strip it back to the scaffold, prove they now fail — then delete it.
+(That QA rule exists because it kept catching real materials bugs.)
+
+**A session**: say "start session" → recall quiz on whatever's due → a mini-lesson on the
+next concept, with a worked example that parallels (but isn't) your task → the task is
+handed over → you write code in your own editor and run the checks → stuck means hints, one
+sealed level at a time, never the answer → at close the tutor updates your progress, banks
+new quiz items, journals what happened, and commits.
+
+The full protocol is `CLAUDE.md` — it *is* the product, and it's short; read it. File
+formats live in `docs/FORMAT.md`.
+
+**Bring your own agent.** Claude Code reads `CLAUDE.md` natively; `AGENTS.md` points Codex
+and other AGENTS.md-convention tools at the same protocol. Anything else: open your agent
+and tell it "read CLAUDE.md and follow it".
 
 ## Your copy vs. the canvas
 
@@ -99,7 +141,9 @@ npm install && npm run dev     →  http://localhost:5173
 - **Course rail** — your modules, progress, and current position
 - **Typeset doc pane** — lessons, briefs, and quizzes, readable like a book
 - **Embedded terminal** — a real PTY in your course repo, with quick actions
-  (launch your agent · start session · run the current module's checks)
+  (launch your agent · start session · run the current module's checks · open your editor);
+  the ⚙ picker sets which agent (claude / codex / gemini / custom) and which editor
+  (VS Code / Zed / Cursor / custom) the buttons use
 - **◇ math lab** — interactive visualizations wired to the current module's lesson
   (a registry of labs; the tutor configures them per module via `lab.json`)
 
