@@ -544,3 +544,72 @@ body.dragging .docpane { pointer-events: none; }
 ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 5px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--ink-faint); }
 ::-webkit-scrollbar-track { background: transparent; }
+
+/* ── welcome (no course yet — onboarding happens in the terminal pane) ── */
+
+.welcome {
+  overflow-y: auto;
+  background: var(--bg-raised);
+  display: flex;
+  justify-content: center;
+}
+.welcome-inner {
+  max-width: 560px;
+  padding: 72px 40px;
+  align-self: start;
+}
+.welcome-mark {
+  font-size: 28px;
+  color: var(--ink-faint);
+  margin-bottom: 18px;
+}
+.welcome h1 {
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--hi);
+  margin: 0 0 10px;
+  letter-spacing: -0.01em;
+}
+.welcome-sub {
+  color: var(--ink-dim);
+  font-size: 14px;
+  margin: 0 0 30px;
+}
+.welcome-sub code, .welcome-foot code {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--bg-deep);
+  border: 1px solid var(--line-soft);
+  border-radius: 4px;
+  padding: 1.5px 6px;
+  color: var(--ink-dim);
+}
+.welcome-steps {
+  margin: 0 0 28px;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.welcome-steps li {
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--ink);
+}
+.welcome-steps b { color: var(--hi); }
+.welcome-btn-ref {
+  font-family: var(--mono);
+  font-size: 11px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 7px;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+.welcome-foot {
+  color: var(--ink-faint);
+  font-size: 12.5px;
+  line-height: 1.65;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 18px;
+}

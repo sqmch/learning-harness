@@ -3,7 +3,12 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 
-export function TerminalPane(props: { repoRoot: string; selectedModuleId: string | null }) {
+export function TerminalPane(props: {
+  repoRoot: string;
+  selectedModuleId: string | null;
+  /** No course in the repo yet — swap module actions for onboarding ones. */
+  welcome?: boolean;
+}) {
   const hostRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -81,16 +86,30 @@ export function TerminalPane(props: { repoRoot: string; selectedModuleId: string
           <button onClick={() => type("claude")} title="Launch Claude Code in the repo">
             launch claude
           </button>
-          <button onClick={() => type("start session", false)} title="Types the session opener — press Enter inside Claude">
-            start session
-          </button>
-          <button
-            disabled={!checksCmd}
-            onClick={() => checksCmd && type(checksCmd)}
-            title="Run the selected module's checks"
-          >
-            run checks
-          </button>
+          {props.welcome ? (
+            <button
+              onClick={() => type("new course", false)}
+              title="Types the onboarding opener — press Enter inside Claude"
+            >
+              new course
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={() => type("start session", false)}
+                title="Types the session opener — press Enter inside Claude"
+              >
+                start session
+              </button>
+              <button
+                disabled={!checksCmd}
+                onClick={() => checksCmd && type(checksCmd)}
+                title="Run the selected module's checks"
+              >
+                run checks
+              </button>
+            </>
+          )}
           <button
             onClick={() => type(`code "${props.repoRoot}"`)}
             title="Open the repo in VS Code — your real editor"

@@ -38,14 +38,20 @@ pretend to be it.
 
 ## How to use it (v0)
 
-1. Clone this repo, open it in Claude Code (or a comparable agentic CLI).
-2. Say **"new course"** — the tutor interviews you (topic, goals, background, hours/week,
-   what "done" looks like), generates a course spine, and asks you to review the arc before
-   anything else is built.
-3. Say **"start session"** whenever you sit down. The tutor runs your due recall quiz,
-   teaches, hands you the next build task, and updates your files at close.
-4. Run checks yourself (`npm run check` inside a module's scaffold). Ask for hints when
-   stuck; they unseal one level at a time.
+1. Clone this repo.
+2. Fire up the cockpit: `.\cockpit.ps1` (Windows) or `cd cockpit && npm install && npm run
+   dev`, then open **http://localhost:5173**.
+3. You land on the welcome screen with a live terminal beside it. Click **launch claude**,
+   then **new course** — the tutor interviews you (topic, goals, background, hours/week,
+   what "done" looks like), drafts your course arc, and asks you to review it before
+   building anything. The page becomes your course the moment your first module exists.
+4. Every sitting after that: open the cockpit, click **start session**. The tutor runs your
+   due recall quiz, teaches, hands you the next build task, and updates your files at close.
+5. Run checks yourself (the **run checks** button, or `npm run check` inside a module's
+   scaffold). Ask for hints when stuck; they unseal one level at a time.
+
+Prefer a bare terminal? Everything works without the cockpit too — open the repo in your
+agent and say "new course" / "start session"; the UI is a lens, not a dependency.
 
 Everything the tutor knows about you lives in `tutor/` and `curriculum/` in this repo —
 plain markdown and JSON, yours to read, version, and delete. Your course grows *inside your

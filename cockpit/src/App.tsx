@@ -3,6 +3,7 @@ import { fetchCourse, type Course } from "./api";
 import { Rail } from "./components/Rail";
 import { DocPane } from "./components/DocPane";
 import { TerminalPane } from "./components/TerminalPane";
+import { WelcomePane } from "./components/WelcomePane";
 import { LabOverlay } from "./lab/LabOverlay";
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -44,6 +45,16 @@ export default function App() {
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, [load]);
+
+  // while the repo has no course, poll — the page flips into the course view
+  // the moment onboarding (in the embedded terminal) writes the first module,
+  // without the learner ever leaving the cockpit
+  const isEmpty = course != null && course.modules.length === 0;
+  useEffect(() => {
+    if (!isEmpty) return;
+    const t = setInterval(load, 4000);
+    return () => clearInterval(t);
+  }, [isEmpty, load]);
 
   // ── pane resizing ──
   useEffect(() => {
@@ -104,26 +115,6 @@ export default function App() {
     );
   }
 
-  // the repo is being served but holds no course yet — greet, don't show empty panes
-  if (course && course.modules.length === 0) {
-    return (
-      <div className="boot-error">
-        <h1>cockpit</h1>
-        <p>
-          No course lives in <code>{course.repoRoot}</code> yet.
-        </p>
-        <p className="hint-line">
-          Open this repo in your agent (e.g. <code>claude</code>) and say{" "}
-          <strong>“new course”</strong> — it will interview you, draft your course arc for
-          review, and build your first module. Then reload this page.
-        </p>
-        <p className="hint-line">
-          Already have a course elsewhere? Point me at it:{" "}
-          <code>HARNESS_REPO=&lt;path&gt;</code> or <code>--repo &lt;path&gt;</code>.
-        </p>
-      </div>
-    );
-  }
 
   return (
     <div className="shell">
@@ -140,34 +131,50 @@ export default function App() {
           >
             <span className="lab-launch-mark">◇</span> math lab
           </button>
-          <div className="meter" title={`${done} of ${total} modules complete`}>
-            <div className="meter-track">
-              <div
-                className="meter-fill"
-                style={{ width: total ? `${(done / total) * 100}%` : "0%" }}
-              />
+          {total > 0 && (
+            <div className="meter" title={`${done} of ${total} modules complete`}>
+              <div className="meter-track">
+                <div
+                  className="meter-fill"
+                  style={{ width: total ? `${(done / total) * 100}%` : "0%" }}
+                />
+              </div>
+              <span className="meter-label">
+                {done}/{total} modules
+              </span>
             </div>
-            <span className="meter-label">
-              {done}/{total} modules
-            </span>
-          </div>
+          )}
         </div>
       </header>
 
       <div
         className="workspace"
-        style={{ gridTemplateColumns: `${railW}px 5px minmax(0, 1fr) 5px ${termW}px` }}
+        style={{
+          gridTemplateColumns: isEmpty
+            ? `minmax(0, 1fr) 5px ${termW}px`
+            : `${railW}px 5px minmax(0, 1fr) 5px ${termW}px`,
+        }}
       >
-        <Rail
-          modules={course?.modules ?? []}
-          currentModule={course?.currentModule ?? null}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-        />
-        <div className="gutter" onMouseDown={startDrag("rail")} />
-        <DocPane module={selected} />
+        {isEmpty ? (
+          <WelcomePane repoRoot={course!.repoRoot} />
+        ) : (
+          <>
+            <Rail
+              modules={course?.modules ?? []}
+              currentModule={course?.currentModule ?? null}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+            />
+            <div className="gutter" onMouseDown={startDrag("rail")} />
+            <DocPane module={selected} />
+          </>
+        )}
         <div className="gutter" onMouseDown={startDrag("term")} />
-        <TerminalPane repoRoot={course?.repoRoot ?? ""} selectedModuleId={selectedId} />
+        <TerminalPane
+          repoRoot={course?.repoRoot ?? ""}
+          selectedModuleId={selectedId}
+          welcome={isEmpty}
+        />
       </div>
 
       {/* overlay stays mounted (hidden when closed) so the lab keeps its state
