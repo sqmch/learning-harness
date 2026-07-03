@@ -1,13 +1,20 @@
-# Math Lab — visual intuition, wired to the course
+# The Lab — visual intuition, wired to the course
 
-A small interactive playground inside the study for **feeling** the math the course leans on,
-built for a learner who doesn't read notation. Two labs are live — **Vectors & Similarity**
-(dot product, magnitude, normalization, cosine, euclidean distance; shipped with `01-embeddings`)
-and **Chunking & Overlap** (boundary-straddle, overlap rescue, the duplicated-token cost;
-shipped with `02-vector-store`). The frame is deliberately a *registry of labs* so the next
-topic that benefits from a picture plugs into the same shell.
+A full-screen playground inside the study for **feeling** the concepts a lesson can only
+describe, built for learners who understand pictures before notation. Two kinds of
+visualization plug into one shell:
 
-Launch: the **`◇ math lab`** button in the study topbar → full-screen overlay → `esc` closes.
+- **Stock labs** — polished interactives shipped with the engine (today: **Vectors &
+  Similarity** and **Chunking & Overlap**). The engine never decides which course they belong
+  to: a module *claims* a stock lab by carrying its config key in `lab.json`.
+- **Course-owned visuals** — self-contained HTML files the tutor generates per module
+  (`curriculum/NN/visuals/*.html`, declared in `lab.json`), rendered in sandboxed iframes —
+  full-screen here, or inline in the lesson via a ```visual fence.
+
+A course with no claims shows no lab at all — a fresh clone has no ◇ button.
+
+Launch: the **`◇ lab`** topbar button (opens on the current module's visual), the **◇ chips**
+on a lesson's tab row (open directly on that visual), or `esc` to close.
 
 ## Why this exists
 
@@ -48,46 +55,53 @@ study/src/lab/
 ```
 
 Wiring into the study (the whole footprint):
-- `App.tsx` — a `labOpen` flag, the topbar button, and an always-mounted `<LabOverlay open=…/>`
-  (hidden when closed) that's handed the current module's `lab` config.
-- `styles.css` — `.topbar-right` flex + `.lab-launch` button.
-- `server/index.ts` — reads each module's optional `lab.json` into `module.lab`; also normalizes
-  progress status (`"completed"` → `"complete"`) so the rail/meter render correctly.
-- `api.ts` — `ModuleLabConfig` / `VectorLabConfig` / `ChunkingLabConfig` types + `module.lab`.
+- `App.tsx` — `labOpen` + `labTarget` state, the topbar button (hidden when the course claims
+  nothing), and an always-mounted `<LabOverlay open=…/>` handed the course's modules.
+- `DocPane.tsx` — the ◇ chips on the tab row, and the ```visual fence → sandboxed-iframe
+  rendering for in-lesson embeds.
+- `Rail.tsx` — the ◇ badge on modules that have visuals.
+- `styles.css` / `lab.css` — `.lab-launch`, `.doc-visual-*`, `.lab-iframe`.
+- `server/index.ts` — reads each module's optional `lab.json` into `module.lab`, and serves
+  `GET /visual/<module>/<file>.html` from the module's `visuals/` dir under a CSP that blocks
+  all network access (self-containment is enforced, not requested).
+- `api.ts` — `ModuleLabConfig` / `VisualDef` / per-lab config types + `module.lab`.
 
-Plus content: `curriculum/NN/lab.json` (tutor-generated, per module).
+Plus content: `curriculum/NN/lab.json` and `curriculum/NN/visuals/` (tutor-generated).
 
 ## The extensibility model
 
-A **lab** is one entry in `LABS` (`registry.ts`):
+A **stock lab** is one entry in `STOCK_LABS` (`registry.ts`):
 
 ```ts
-interface LabDef {
-  id: string;
+interface StockLab {
+  id: string;             // = the lab.json config key that claims this lab
   title: string;
   blurb: string;          // one line: what you'll feel by playing with it
-  modules: string[];      // curriculum module ids this lab illuminates
-  status: "live" | "planned";
-  component?: ComponentType<LabProps>;  // present for live labs
+  component: ComponentType<LabProps>;
 }
 ```
 
-**To add a lab:**
-1. Drop a component in `src/lab/labs/` (receives `LabProps = { config?, moduleId? }`; reads/writes
-   only its own state).
-2. Add a `LABS` entry with the `modules` it illuminates and `status: "live"`.
-3. Done. The overlay lists it, renders it, and — when the learner's `currentModule` is one of its
-   `modules` — badges it **current topic**, opens to it by default, and feeds it that module's
-   `lab.json` config.
+**To add a stock lab to the engine:**
+1. Drop a component in `src/lab/labs/` (receives `LabProps = { config?, moduleId? }`;
+   reads/writes only its own state).
+2. Add a `STOCK_LABS` entry keyed by the `lab.json` config key that claims it.
+3. Done. Any course whose module carries that key gets the lab: listed in the overlay,
+   badged **current topic** when the learner is on a claiming module, chip on the lesson,
+   fed that module's config.
 
-`status: "planned"` entries need no component; they render a placeholder card ("arrives with
-module 0X"), so the roadmap is visible *inside the app*, not just here.
+**A course adds its own visual without touching the engine:** a self-contained
+`visuals/*.html` in the module dir, declared under `lab.json.visuals` (and optionally
+embedded in LESSON.md with a ```visual fence). The engine ships no course visuals — it only
+renders what the course declares. Formats: `docs/FORMAT.md`.
 
 ### Two layers of course coupling
 
-**Structural** — `modules: string[]` on each `LabDef`. The overlay gets `currentModule` from the
-course API and `defaultLabId()` surfaces the lab tied to where the learner actually is. As they
-advance, the lab that opens first advances with them. No extra plumbing.
+**Structural** — the claim itself. `buildEntries()` (`registry.ts`) walks the course's
+modules and derives every openable visual from their `lab.json`s: stock claims (a module
+carrying `"vectors": {…}` claims the vectors lab) and custom `visuals` entries. The overlay
+gets `currentModule` from the course API and opens on the entry tied to where the learner
+actually is; the lesson chips and rail badges come from the same derivation. No module ids
+live in engine code.
 
 **Content** — a per-module **`curriculum/NN/lab.json`** (read by the server, delivered as
 `module.lab`, passed to the active lab when it matches the current module). This is what makes the
@@ -137,18 +151,20 @@ in that box.
   `focus`, swap presets to target the gap, relabel axes. Same "detect struggle → adapt" loop as
   hints; it touches tutor-generated content only.
 
-## Roadmap (frames in place; components plug in per module)
+## Stock-lab roadmap (candidates ship as engine components when a live course needs them)
 
-| Lab | Module | Makes tangible |
+| Lab | Claimed today by (source course) | Makes tangible |
 |---|---|---|
 | **Vectors & Similarity** ✅ live | `01-embeddings`, `02-vector-store` | dot · length · normalize · cosine · euclidean |
 | **Chunking & Overlap** ✅ live (2026-06-16) | `02-vector-store` | why long text is split; what overlap buys; the duplicated-token cost |
-| Top-k Retrieval | `03-rag-pipeline` | a query pulling its nearest neighbours from a corpus |
-| Precision & Recall | `04-rag-quality` | sliding the cutoff; hits / misses / false alarms |
+| Top-k Retrieval (planned) | — | a query pulling its nearest neighbours from a corpus |
+| Precision & Recall (planned) | — | sliding the cutoff; hits / misses / false alarms |
 
-Phase 2+ candidates (not yet registered): softmax/temperature, tokenization, attention as a
-weighted sum, a 2-D projection (PCA) of *real* embedded points. Add them when the matching module
-goes live — never speculatively (cf. `PLATFORM.md` → "premature generality").
+Planned labs no longer render placeholder cards in the app — a course only ever sees visuals
+it has claimed or shipped. Later candidates: softmax/temperature, tokenization, attention as
+a weighted sum, a 2-D projection (PCA) of *real* embedded points. Add them when a live
+course's module needs them — never speculatively (cf. `PLATFORM.md` → "premature
+generality").
 
 ## Lab #1 — what it does
 

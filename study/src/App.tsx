@@ -5,6 +5,7 @@ import { DocPane } from "./components/DocPane";
 import { TerminalPane } from "./components/TerminalPane";
 import { WelcomePane } from "./components/WelcomePane";
 import { LabOverlay } from "./lab/LabOverlay";
+import { buildEntries, type LabEntry } from "./lab/registry";
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
@@ -13,6 +14,9 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedIdRaw] = useState<string | null>(null);
   const [labOpen, setLabOpen] = useState(false);
+  const [labTarget, setLabTarget] = useState<{ entryKey: string; moduleId: string } | null>(
+    null,
+  );
 
   const [railW, setRailW] = useState(() => Number(localStorage.getItem("ck.railW")) || 290);
   const [termW, setTermW] = useState(() => Number(localStorage.getItem("ck.termW")) || 480);
@@ -93,10 +97,13 @@ export default function App() {
   );
 
   const currentModule = course?.currentModule ?? null;
-  const moduleConfig = useMemo(
-    () => course?.modules.find((m) => m.id === currentModule)?.lab ?? null,
-    [course, currentModule],
-  );
+  // everything the course can visualize — nothing hardcoded in the engine;
+  // an empty list hides the lab entirely (a fresh clone has no lab button)
+  const labEntries = useMemo(() => buildEntries(course?.modules ?? []), [course]);
+  const openLab = useCallback((entry: LabEntry, moduleId: string) => {
+    setLabTarget({ entryKey: entry.key, moduleId });
+    setLabOpen(true);
+  }, []);
 
   const done = course?.modules.filter((m) => m.status === "complete").length ?? 0;
   const total = course?.modules.length ?? 0;
@@ -134,13 +141,18 @@ export default function App() {
           {repoName && <span className="wordmark-sub">/ study</span>}
         </div>
         <div className="topbar-right">
-          <button
-            className="lab-launch"
-            onClick={() => setLabOpen(true)}
-            title="Open the math lab — visual intuition for vectors, cosine, and more"
-          >
-            <span className="lab-launch-mark">◇</span> math lab
-          </button>
+          {labEntries.length > 0 && (
+            <button
+              className="lab-launch"
+              onClick={() => {
+                setLabTarget(null);
+                setLabOpen(true);
+              }}
+              title="Open the lab — this course's interactive visualizations"
+            >
+              <span className="lab-launch-mark">◇</span> lab
+            </button>
+          )}
           {total > 0 && (
             <div className="meter" title={`${done} of ${total} modules complete`}>
               <div className="meter-track">
@@ -176,7 +188,7 @@ export default function App() {
               onSelect={setSelectedId}
             />
             <div className="gutter" onMouseDown={startDrag("rail")} />
-            <DocPane module={selected} />
+            <DocPane module={selected} onOpenVisual={openLab} />
           </>
         )}
         <div className="gutter" onMouseDown={startDrag("term")} />
@@ -192,8 +204,9 @@ export default function App() {
       <LabOverlay
         open={labOpen}
         onClose={() => setLabOpen(false)}
+        modules={course?.modules ?? []}
         currentModule={currentModule}
-        moduleConfig={moduleConfig}
+        target={labTarget}
       />
     </div>
   );

@@ -1,9 +1,9 @@
 import type { ComponentType } from "react";
-import type { ModuleLabConfig } from "../api";
+import type { ModuleInfo, ModuleLabConfig } from "../api";
 import { VectorSimilarityLab } from "./labs/VectorSimilarityLab";
 import { ChunkingOverlapLab } from "./labs/ChunkingOverlapLab";
 
-/** Props every lab component receives from the overlay. */
+/** Props every stock lab component receives from the overlay. */
 export interface LabProps {
   config?: ModuleLabConfig | null;
   moduleId?: string | null;
@@ -11,69 +11,132 @@ export interface LabProps {
 
 // ── the extensibility seam ───────────────────────────────────────────────
 //
-// A "lab" is one interactive visualization. To add another (see LAB.md):
-//   1. drop a component in ./labs/
-//   2. add an entry below with the curriculum module ids it illuminates
-//   3. that's it — the overlay lists it, and auto-surfaces it as the
-//      "current topic" whenever the learner is on one of those modules.
+// The engine ships STOCK LABS: polished, reusable interactives. It never
+// decides which course they belong to — a module claims a stock lab by
+// carrying that lab's config key in its `lab.json` (e.g. a `"vectors"` key
+// claims the vectors lab). Courses can also ship their own visuals as
+// self-contained HTML (`curriculum/NN/visuals/*.html`, listed under
+// `lab.json.visuals`) — both kinds appear in the overlay side by side.
 //
-// `modules` is the tie-in to the course spine: it maps a visualization to the
-// curriculum module(s) whose concepts it makes tangible. Planned labs carry no
-// component yet and render a placeholder, so the roadmap is visible in-app.
+// To add a stock lab: drop a component in ./labs/, add an entry below keyed
+// by the lab.json config key that claims it. See LAB.md.
 
-export interface LabDef {
+export interface StockLab {
+  /** = the lab.json config key that claims this lab. */
   id: string;
-  /** Short human title shown in the rail and header. */
   title: string;
-  /** One-line description of what you'll feel by playing with it. */
   blurb: string;
-  /** Curriculum module ids this lab illuminates (drives current-topic badging). */
-  modules: string[];
-  /** "live" labs render their component; "planned" labs render a placeholder. */
-  status: "live" | "planned";
-  /** Present only for live labs. */
-  component?: ComponentType<LabProps>;
+  component: ComponentType<LabProps>;
 }
 
-export const LABS: LabDef[] = [
+export const STOCK_LABS: StockLab[] = [
   {
     id: "vectors",
     title: "Vectors & Similarity",
     blurb: "Drag two arrows. Feel dot product, length, cosine, and distance move.",
-    modules: ["01-embeddings", "02-vector-store"],
-    status: "live",
     component: VectorSimilarityLab,
   },
   {
     id: "chunking",
     title: "Chunking & Overlap",
     blurb: "Why long text gets split, and what overlapping windows buy you.",
-    modules: ["02-vector-store"],
-    status: "live",
     component: ChunkingOverlapLab,
-  },
-  // ── roadmap (frames in place; components plug in per module) ──────────────
-  {
-    id: "topk",
-    title: "Top-k Retrieval",
-    blurb: "Fire a query at a little corpus; watch its nearest neighbours light up.",
-    modules: ["03-rag-pipeline"],
-    status: "planned",
-  },
-  {
-    id: "eval-metrics",
-    title: "Precision & Recall",
-    blurb: "Slide the cutoff; see hits, misses, and false alarms trade off.",
-    modules: ["04-rag-quality"],
-    status: "planned",
   },
 ];
 
-/** Pick the lab to open first: the one tied to the learner's current module. */
-export function defaultLabId(currentModule: string | null): string {
-  if (currentModule) {
-    const tied = LABS.find((l) => l.status === "live" && l.modules.includes(currentModule));
-    if (tied) return tied.id;
+/** One openable visualization, derived from the course. */
+export interface LabEntry {
+  /** Stable key: the stock id, or `<moduleId>/<file>` for an HTML visual. */
+  key: string;
+  kind: "stock" | "html";
+  title: string;
+  blurb?: string;
+  /** Module ids this entry belongs to (stock labs may be claimed by several). */
+  modules: string[];
+  /** kind === "stock" */
+  stock?: StockLab;
+  /** kind === "html": iframe URL, served with a self-containment CSP. */
+  src?: string;
+}
+
+const stripPrefix = (file: string) => file.replace(/^visuals\//, "");
+
+export const visualSrc = (moduleId: string, file: string) =>
+  `/visual/${encodeURIComponent(moduleId)}/${encodeURIComponent(stripPrefix(file))}`;
+
+/** Every visualization the course has claimed or shipped, in module order. */
+export function buildEntries(modules: ModuleInfo[]): LabEntry[] {
+  const entries: LabEntry[] = [];
+  const stockSeen = new Map<string, LabEntry>();
+  for (const m of modules) {
+    const lab = m.lab;
+    if (!lab) continue;
+    for (const stock of STOCK_LABS) {
+      if (!(stock.id in lab)) continue;
+      const existing = stockSeen.get(stock.id);
+      if (existing) {
+        existing.modules.push(m.id);
+      } else {
+        const entry: LabEntry = {
+          key: stock.id,
+          kind: "stock",
+          title: stock.title,
+          blurb: stock.blurb,
+          modules: [m.id],
+          stock,
+        };
+        stockSeen.set(stock.id, entry);
+        entries.push(entry);
+      }
+    }
+    for (const v of lab.visuals ?? []) {
+      if (!v?.file || !v.title) continue; // a malformed entry must not brick the overlay
+      entries.push({
+        key: `${m.id}/${stripPrefix(v.file)}`,
+        kind: "html",
+        title: v.title,
+        blurb: v.blurb,
+        modules: [m.id],
+        src: visualSrc(m.id, v.file),
+      });
+    }
   }
-  return LABS.find((l) => l.status === "live")?.id ?? LABS[0].id;
+  return entries;
+}
+
+/** The entries belonging to one module (drives lesson chips + rail badges). */
+export function entriesForModule(entries: LabEntry[], moduleId: string): LabEntry[] {
+  return entries.filter((e) => e.modules.includes(moduleId));
+}
+
+export function moduleHasVisuals(m: ModuleInfo): boolean {
+  return buildEntries([m]).length > 0;
+}
+
+/** Which entry to open first: honor the module's focusLab, else its first entry. */
+export function defaultEntryKey(
+  entries: LabEntry[],
+  moduleId: string | null,
+  config: ModuleLabConfig | null,
+): string | null {
+  if (moduleId) {
+    const mine = entriesForModule(entries, moduleId);
+    const focused = config?.focusLab && mine.find((e) => e.key === config.focusLab);
+    if (focused) return focused.key;
+    if (mine[0]) return mine[0].key;
+  }
+  return entries[0]?.key ?? null;
+}
+
+/** The lab.json to feed a stock lab: the context module's, if it claims the lab. */
+export function configFor(
+  entry: LabEntry,
+  modules: ModuleInfo[],
+  contextModuleId: string | null,
+): { config: ModuleLabConfig | null; moduleId: string | null } {
+  if (contextModuleId && entry.modules.includes(contextModuleId)) {
+    const m = modules.find((mm) => mm.id === contextModuleId);
+    if (m?.lab) return { config: m.lab, moduleId: m.id };
+  }
+  return { config: null, moduleId: null };
 }

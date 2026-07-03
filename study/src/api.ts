@@ -20,17 +20,31 @@ export interface ChunkingLabConfig {
   factLabel?: string;
   presets?: { label: string; size: number; overlap: number }[];
 }
+/** A course-owned visualization: a self-contained HTML file under the module's visuals/. */
+export interface VisualDef {
+  /** Filename inside the module's visuals/ dir (a leading "visuals/" is tolerated). */
+  file: string;
+  title: string;
+  /** One line: what you'll feel by playing with it. */
+  blurb?: string;
+}
 export interface ModuleLabConfig {
   /** What the learner is currently wrestling with — shown as a callout in the lab. */
   focus?: string;
   /**
-   * Registry id of the lab the `focus` text is written for. When several labs
-   * claim the current module, this picks which one shows the callout and which
-   * one the overlay opens to. Absent → the first live lab for the module.
+   * Id of the lab entry the `focus` text is written for. When a module claims
+   * several visuals, this picks which one shows the callout and which one the
+   * overlay opens to. Absent → the module's first visual.
    */
   focusLab?: string;
+  /**
+   * Claiming a stock lab = carrying its config key. The engine ships the
+   * components; the course decides (via lab.json) which modules they serve.
+   */
   vectors?: VectorLabConfig;
   chunking?: ChunkingLabConfig;
+  /** Course-generated visuals (self-contained HTML, rendered in sandboxed iframes). */
+  visuals?: VisualDef[];
 }
 
 export interface ModuleInfo {

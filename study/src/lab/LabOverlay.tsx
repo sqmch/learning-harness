@@ -1,24 +1,43 @@
-import { useEffect, useState } from "react";
-import type { ModuleLabConfig } from "../api";
-import { LABS, defaultLabId } from "./registry";
+import { useEffect, useMemo, useState } from "react";
+import type { ModuleInfo } from "../api";
+import { buildEntries, configFor, defaultEntryKey, type LabEntry } from "./registry";
 import "./lab.css";
 
 export function LabOverlay(props: {
   open: boolean;
   onClose: () => void;
+  modules: ModuleInfo[];
   currentModule: string | null;
-  moduleConfig: ModuleLabConfig | null;
+  /**
+   * Set when the overlay was opened from a specific place (a lesson's ◇ chip):
+   * which entry to show, and which module's lab.json to feed it.
+   */
+  target: { entryKey: string; moduleId: string } | null;
 }) {
-  // the learner's own pick wins; otherwise follow the course: the lab.json's
-  // focusLab if it names a live lab, else the first live lab for the current
-  // module. Derived (not initializer state) so it tracks the course loading
-  // and the learner advancing — a useState default would freeze at first render.
+  const entries = useMemo(() => buildEntries(props.modules), [props.modules]);
+
+  // the learner's own pick wins; else the chip that opened us; else follow the
+  // course (current module's focusLab / first entry). Derived, not initializer
+  // state, so it tracks the course loading and the learner advancing.
   const [pickedId, setPickedId] = useState<string | null>(null);
-  const focusLab = props.moduleConfig?.focusLab;
-  const focusLabLive = LABS.some((l) => l.id === focusLab && l.status === "live");
-  const activeId =
-    pickedId ?? (focusLab && focusLabLive ? focusLab : defaultLabId(props.currentModule));
-  const active = LABS.find((l) => l.id === activeId) ?? LABS[0];
+  useEffect(() => setPickedId(null), [props.target]); // a fresh chip-open overrides an old pick
+  const currentConfig =
+    props.modules.find((m) => m.id === props.currentModule)?.lab ?? null;
+  const activeKey =
+    pickedId ??
+    props.target?.entryKey ??
+    defaultEntryKey(entries, props.currentModule, currentConfig);
+  const active = entries.find((e) => e.key === activeKey) ?? entries[0] ?? null;
+
+  // which module's lab.json feeds the active lab: the chip's module, else the
+  // learner's current module — never some unrelated module's config
+  const contextModuleId =
+    props.target && active && props.target.entryKey === active.key
+      ? props.target.moduleId
+      : props.currentModule;
+  const { config, moduleId } = active
+    ? configFor(active, props.modules, contextModuleId)
+    : { config: null, moduleId: null };
 
   useEffect(() => {
     if (!props.open) return;
@@ -27,22 +46,20 @@ export function LabOverlay(props: {
     return () => window.removeEventListener("keydown", onKey);
   }, [props.open, props.onClose]);
 
-  const isCurrent = (modules: string[]) =>
-    props.currentModule != null && modules.includes(props.currentModule);
+  const isCurrent = (e: LabEntry) =>
+    props.currentModule != null && e.modules.includes(props.currentModule);
 
-  // the focus note only applies to the lab it was written for: the module's
-  // focusLab when set (several labs can claim one module), else any current lab
+  // the focus note only applies to the entry it was written for: the module's
+  // focusLab when set, else any entry of the module whose config is active
   const showFocus =
-    props.moduleConfig?.focus &&
-    isCurrent(active.modules) &&
-    (!focusLab || focusLab === active.id);
+    config?.focus && active && (!config.focusLab || config.focusLab === active.key);
 
   return (
     <div className={`lab-overlay ${props.open ? "" : "hidden"}`} aria-hidden={!props.open}>
       <header className="lab-topbar">
         <div className="lab-wordmark">
-          <span className="lab-mark">◇</span> math lab
-          <span className="lab-sub">/ visual intuition for the course</span>
+          <span className="lab-mark">◇</span> lab
+          <span className="lab-sub">/ visual intuition, wired to the course</span>
         </div>
         <button className="lab-close" onClick={props.onClose}>
           close <kbd>esc</kbd>
@@ -52,30 +69,26 @@ export function LabOverlay(props: {
       <div className="lab-body">
         <nav className="lab-rail">
           <div className="lab-rail-heading">Visualizations</div>
-          {LABS.map((lab) => {
-            const current = isCurrent(lab.modules);
-            return (
-              <button
-                key={lab.id}
-                className={[
-                  "lab-rail-item",
-                  lab.id === activeId ? "active" : "",
-                  lab.status === "planned" ? "planned" : "",
-                ].join(" ")}
-                onClick={() => setPickedId(lab.id)}
-              >
-                <div className="lab-rail-title">
-                  {lab.title}
-                  {current && <span className="lab-chip current">current topic</span>}
-                  {lab.status === "planned" && <span className="lab-chip">planned</span>}
-                </div>
-                <div className="lab-rail-blurb">{lab.blurb}</div>
-                <div className="lab-rail-modules">{lab.modules.join(" · ")}</div>
-              </button>
-            );
-          })}
+          {entries.map((entry) => (
+            <button
+              key={entry.key}
+              className={[
+                "lab-rail-item",
+                active && entry.key === active.key ? "active" : "",
+              ].join(" ")}
+              onClick={() => setPickedId(entry.key)}
+            >
+              <div className="lab-rail-title">
+                {entry.title}
+                {isCurrent(entry) && <span className="lab-chip current">current topic</span>}
+              </div>
+              {entry.blurb && <div className="lab-rail-blurb">{entry.blurb}</div>}
+              <div className="lab-rail-modules">{entry.modules.join(" · ")}</div>
+            </button>
+          ))}
           <div className="lab-rail-foot">
-            Each lab ties to a module. New ones plug in as the course grows — see{" "}
+            Visuals belong to modules: the tutor claims a stock lab or ships its own
+            interactive HTML per module via <code>lab.json</code> — see{" "}
             <code>study/LAB.md</code>.
           </div>
         </nav>
@@ -84,22 +97,28 @@ export function LabOverlay(props: {
           {showFocus && (
             <div className="lab-focus">
               <span className="lab-focus-tag">focus</span>
-              {props.moduleConfig!.focus}
+              {config!.focus}
             </div>
           )}
-          {active.status === "live" && active.component ? (
-            <active.component
-              config={isCurrent(active.modules) ? props.moduleConfig : null}
-              moduleId={props.currentModule}
+          {active?.kind === "stock" && active.stock ? (
+            <active.stock.component config={config} moduleId={moduleId} />
+          ) : active?.kind === "html" && active.src ? (
+            // sandbox: scripts yes, same-origin no — the visual runs isolated,
+            // and the serving endpoint's CSP blocks all network access
+            <iframe
+              className="lab-iframe"
+              key={active.key /* force a fresh document per visual */}
+              src={active.src}
+              title={active.title}
+              sandbox="allow-scripts"
             />
           ) : (
             <div className="lab-placeholder">
               <div className="lab-placeholder-mark">◇</div>
-              <h2>{active.title}</h2>
-              <p>{active.blurb}</p>
-              <p className="lab-placeholder-meta">
-                Arrives with module <strong>{active.modules.join(", ")}</strong>. The frame is
-                here; the visualization plugs into this same shell.
+              <h2>Nothing to visualize yet</h2>
+              <p>
+                Visuals arrive with modules: the tutor adds them where a concept is better
+                seen than read.
               </p>
             </div>
           )}

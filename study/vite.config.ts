@@ -10,6 +10,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": `http://${api}`,
+      "/visual": `http://${api}`,
       "/term": { target: `ws://${api}`, ws: true },
     },
   },

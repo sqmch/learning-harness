@@ -144,8 +144,10 @@ npm install && npm run dev     →  http://localhost:5173
   (launch your agent · start session · run the current module's checks · open your editor);
   the ⚙ picker sets which agent (claude / codex / gemini / custom) and which editor
   (VS Code / Zed / Cursor / custom) the buttons use
-- **◇ math lab** — interactive visualizations wired to the current module's lesson
-  (a registry of labs; the tutor configures them per module via `lab.json`)
+- **◇ lab** — interactive visualizations, owned by the course: the tutor claims a stock lab
+  (e.g. vector geometry) or generates a module's own interactive HTML, embeds it in the
+  lesson where the picture belongs, and full-screens it here; the button only exists once
+  your course has something to show
 
 The study serves whichever repo holds your course: by default this one (the clone-and-go
 case); point it elsewhere with `--repo <path>` or the `HARNESS_REPO` env var.

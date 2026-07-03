@@ -18,7 +18,8 @@ curriculum/
     checks/          ← automated tests, run by the learner
     hints/           ← hint-1.md (nudge), hint-2.md (approach), hint-3.md (near-spoiler)
     quiz.md          ← 4–8 retrieval questions
-    lab.json         ← optional: config for an interactive visualization (study lab)
+    lab.json         ← optional: claims/configures the module's visualizations (below)
+    visuals/         ← optional: self-contained interactive HTML, rendered sandboxed
 tutor/
   progress.json      ← module status, hint usage, check attempts, tutor notes
   quiz-bank.json     ← spaced-repetition items with intervals, due dates, history
@@ -96,16 +97,41 @@ event). Content contract: what was covered; where the learner struggled or shone
 specifics; open threads; pedagogy/calibration decisions. The tutor reads the last few entries
 at every session open.
 
-## lab.json (optional, per module)
+## lab.json (optional, per module) — visualizations
 
-Config for an interactive visualization in the study UI. Shape is lab-specific; common
-envelope:
+A module gets a visualization in one (or both) of two ways, both declared here. The study
+derives everything from this file: the ◇ lab button (hidden when no module claims anything),
+the ◇ chips on the module's lesson, and the rail badge. **Nothing about visuals is hardcoded
+in the engine.**
 
 ```jsonc
 {
   "provenance": "tutor-generated",
   "focus": "one line: the live confusion this module's picture should target",
-  "focusLab": "chunking"            // which lab the focus targets, when several fit the module
-  // + one key per lab type with its config
+  "focusLab": "chunking",           // which entry the focus targets, when the module has several
+
+  // 1) CLAIM A STOCK LAB: carrying a stock lab's config key claims it for this
+  //    module. The engine ships the components (see study/src/lab/registry.ts:
+  //    "vectors", "chunking"); the course decides which modules they serve.
+  "vectors": { /* lab-specific config — axes, example vectors, presets */ },
+
+  // 2) SHIP YOUR OWN: self-contained HTML files under this module's visuals/.
+  "visuals": [
+    {
+      "file": "event-loop.html",    // inside visuals/; inline CSS/JS ONLY — the study
+                                    // serves it under a CSP that blocks all network
+      "title": "The event loop, animated",
+      "blurb": "one line: what you'll feel by playing with it"
+    }
+  ]
 }
 ```
+
+A custom visual can also be embedded **inline in LESSON.md**, right where the picture
+belongs, with a `visual` fence (the study renders it as a sandboxed iframe):
+
+````markdown
+```visual
+{ "file": "event-loop.html", "height": 420, "title": "The event loop" }
+```
+````

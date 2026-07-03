@@ -94,6 +94,17 @@ When the learner completes a module, generate the next one per the `COURSE.md` s
   expressions**; hint-3 = near-spoiler pseudocode. If hint-2 contains code the learner can
   copy verbatim, it's a hint-3 and must be demoted.
 - `quiz.md` — 4–8 retrieval questions; copy into `quiz-bank.json` when the module completes.
+- **A visual — only when a picture genuinely teaches** (optional): if the module's core
+  concept is spatial or dynamic (geometry, flows, distributions, state over time), give it an
+  interactive visualization. Two tools: **claim a stock lab** by adding its config key to the
+  module's `lab.json` (available stock labs: `study/src/lab/registry.ts`), or **write your
+  own** as a self-contained `visuals/*.html` — inline CSS/JS only, no external references
+  (the study serves it under a CSP that blocks all network) — list it in `lab.json`, and
+  embed it in LESSON.md with a ```visual fence right where the picture belongs. Derive it
+  from the LESSON/BRIEF you just wrote: same examples, same vocabulary, so picture and prose
+  agree. Never decorative — skip it when prose and code teach fine. Mid-session, when a
+  specific misconception surfaces, adapt `lab.json` (rewrite `focus`, swap presets) — the
+  same detect-struggle→adapt loop as hints. Formats: `docs/FORMAT.md`; model: `study/LAB.md`.
 
 **QA before handover (non-negotiable):** before the learner sees a module, write a sealed
 reference solution, run the checks against it (must be all green), then strip it back to the

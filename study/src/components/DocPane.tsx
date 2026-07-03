@@ -9,6 +9,7 @@ import json from "highlight.js/lib/languages/json";
 import bash from "highlight.js/lib/languages/bash";
 import http from "highlight.js/lib/languages/http";
 import { fetchFile, type ModuleInfo } from "../api";
+import { buildEntries, visualSrc, type LabEntry } from "../lab/registry";
 
 hljs.registerLanguage("typescript", typescript);
 hljs.registerLanguage("javascript", javascript);
@@ -38,19 +39,48 @@ const md = new Marked(
   }),
 );
 
+// A ```visual fence embeds a module-owned interactive right in the lesson:
+//   ```visual
+//   { "file": "event-loop.html", "height": 420, "title": "The event loop" }
+//   ```
+// Rendered here as a placeholder <div>; a post-sanitize effect swaps it for a
+// sandboxed <iframe> built via DOM APIs — DOMPurify is never loosened to let
+// markdown author iframes directly.
+md.use({
+  renderer: {
+    code(token: { text: string; lang?: string }) {
+      if ((token.lang ?? "").trim() !== "visual") return false;
+      try {
+        const spec = JSON.parse(token.text);
+        if (typeof spec.file !== "string") return false;
+        const height = Math.max(160, Math.min(900, Number(spec.height) || 420));
+        const title = typeof spec.title === "string" ? spec.title : "interactive visual";
+        return `<div class="doc-visual-embed" data-visual-file="${escapeHtml(spec.file)}" data-visual-height="${height}" data-visual-title="${escapeHtml(title)}"></div>`;
+      } catch {
+        return false; // malformed spec → render as a plain code block, never crash the doc
+      }
+    },
+  },
+});
+
 const DOC_LABELS: Record<string, string> = {
   "LESSON.md": "Lesson",
   "BRIEF.md": "Brief",
   "quiz.md": "Quiz",
 };
 
-export function DocPane(props: { module: ModuleInfo | null }) {
+export function DocPane(props: {
+  module: ModuleInfo | null;
+  /** Open the lab overlay directly on one of this module's visuals. */
+  onOpenVisual: (entry: LabEntry, moduleId: string) => void;
+}) {
   const [doc, setDoc] = useState<string>("LESSON.md");
   const [html, setHtml] = useState<string>("");
   const [state, setState] = useState<"loading" | "ready" | "missing">("loading");
   const articleRef = useRef<HTMLElement>(null);
 
   const docs = props.module?.docs ?? [];
+  const visuals = props.module ? buildEntries([props.module]) : [];
 
   useEffect(() => {
     if (props.module) {
@@ -74,6 +104,26 @@ export function DocPane(props: { module: ModuleInfo | null }) {
       cancelled = true;
     };
   }, [props.module?.id, doc]);
+
+  // swap ```visual placeholders for sandboxed iframes (built here, not by the
+  // markdown pipeline — see the renderer note above)
+  useEffect(() => {
+    const root = articleRef.current;
+    const moduleId = props.module?.id;
+    if (!root || !moduleId) return;
+    root.querySelectorAll<HTMLElement>(".doc-visual-embed").forEach((ph) => {
+      if (ph.dataset.mounted) return;
+      ph.dataset.mounted = "1";
+      const iframe = document.createElement("iframe");
+      iframe.className = "doc-visual-frame";
+      iframe.src = visualSrc(moduleId, ph.dataset.visualFile ?? "");
+      iframe.title = ph.dataset.visualTitle ?? "interactive visual";
+      iframe.setAttribute("sandbox", "allow-scripts");
+      iframe.setAttribute("loading", "lazy");
+      iframe.style.height = `${ph.dataset.visualHeight ?? 420}px`;
+      ph.appendChild(iframe);
+    });
+  }, [html, props.module?.id]);
 
   // copy buttons on code blocks
   useEffect(() => {
@@ -121,6 +171,20 @@ export function DocPane(props: { module: ModuleInfo | null }) {
               {DOC_LABELS[d] ?? d}
             </button>
           ))}
+          {visuals.length > 0 && (
+            <span className="doc-visual-chips">
+              {visuals.map((e) => (
+                <button
+                  key={e.key}
+                  className="doc-visual-chip"
+                  onClick={() => props.onOpenVisual(e, props.module!.id)}
+                  title={e.blurb ?? `Open "${e.title}" full-screen in the lab`}
+                >
+                  ◇ {e.title.toLowerCase()}
+                </button>
+              ))}
+            </span>
+          )}
         </nav>
       </div>
 

@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { type ModuleInfo } from "../api";
+import { moduleHasVisuals } from "../lab/registry";
 
 export function Rail(props: {
   modules: ModuleInfo[];
@@ -48,7 +49,14 @@ export function Rail(props: {
                     {m.status === "complete" ? "✓" : ""}
                   </span>
                   <span className="module-meta">
-                    <span className="module-title">{m.title}</span>
+                    <span className="module-title">
+                      {m.title}
+                      {moduleHasVisuals(m) && (
+                        <span className="module-viz" title="has a visualization — see the lesson's ◇ chips">
+                          ◇
+                        </span>
+                      )}
+                    </span>
                     <span className="module-sub">
                       {m.estimatedHours}h · {m.runtime}
                       {m.bossCheck ? " · boss-check" : ""}

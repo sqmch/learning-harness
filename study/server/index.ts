@@ -108,6 +108,33 @@ app.get("/api/file", (req, res) => {
   res.json({ path: rel, content: fs.readFileSync(abs, "utf8") });
 });
 
+// ---------- course visuals: self-contained HTML, sandboxed + offline ----------
+// Serves ONLY curriculum/<module>/visuals/<file>.html. The CSP makes the
+// protocol rule ("visuals must be self-contained") mechanical: no external
+// scripts, styles, fonts, fetches, or images — inline everything, data: URIs
+// for assets. The client additionally renders these in sandboxed iframes.
+app.get("/visual/:moduleId/:file", (req, res) => {
+  const { moduleId, file } = req.params as { moduleId: string; file: string };
+  const visualsDir = path.join(REPO_ROOT, "curriculum", moduleId, "visuals");
+  const abs = path.resolve(visualsDir, file);
+  const inDir = abs.startsWith(path.resolve(visualsDir) + path.sep);
+  if (!inDir || path.extname(abs).toLowerCase() !== ".html") {
+    res.status(403).json({ error: "forbidden" });
+    return;
+  }
+  if (!fs.existsSync(abs)) {
+    res.status(404).json({ error: "not found" });
+    return;
+  }
+  res.set({
+    "Content-Type": "text/html; charset=utf-8",
+    "Content-Security-Policy":
+      "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; " +
+      "img-src data: blob:; media-src data: blob:; font-src data:",
+  });
+  res.send(fs.readFileSync(abs, "utf8"));
+});
+
 // ---------- static (production build, if present) ----------
 const dist = path.join(__dirname, "..", "dist");
 if (fs.existsSync(dist)) {
