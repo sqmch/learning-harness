@@ -57,6 +57,15 @@ Everything the tutor knows about you lives in `tutor/` and `curriculum/` in this
 plain markdown and JSON, yours to read, version, and delete. Your course grows *inside your
 clone*; this repo is both the engine and your instance.
 
+## Your copy vs. this repo
+
+The published repo is the **empty canvas** — nobody's course lives upstream. Your clone (or
+"Use this template" copy) is **your instance**: the course files the tutor creates
+(`COURSE.md`, `curriculum/`, `tutor/`) occupy paths the engine never ships, so they're yours
+to commit — the tutor commits at every session close, making your learning history part of
+your repo's history. Because engine paths and course paths are disjoint, **`git pull` brings
+you engine updates** (cockpit fixes, protocol improvements) without touching your course.
+
 ## The cockpit — the way you'll actually want to work
 
 A local web shell around the same files (nothing runs in a cloud; it owns zero state):

@@ -30,7 +30,11 @@ When the learner says "new course" (or the repo has no course):
    and describe what would be lost — don't quietly degrade.
 3. **Generate `COURSE.md`:** learner profile, phases with goals, a module arc (each module:
    one sentence of scope + what gets built), pacing estimate, and where the boss-checks fall
-   (one per phase — a gate the learner must genuinely pass to advance).
+   (one per phase — a gate the learner must genuinely pass to advance). Course-specific tutor
+   rules (provider/tooling targets, cost policies, domain conventions) also live in
+   `COURSE.md` — **never edit this file or other engine files** (`cockpit/`, `docs/`,
+   `templates/`): course paths and engine paths are disjoint so instances can `git pull`
+   engine updates; an edited engine file breaks that forever.
 4. **The learner reviews the arc before anything is built.** Walk them through it, take their
    pushback, revise. Only then generate module 00 and seed `tutor/` from `templates/`.
 5. Commit the result.
