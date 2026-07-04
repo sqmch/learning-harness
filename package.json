@@ -1,6 +1,8 @@
 {
   "name": "learning-harness",
   "private": true,
+  "license": "MIT",
+  "repository": "github:sqmch/learning-harness",
   "workspaces": [
     "study"
   ],

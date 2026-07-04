@@ -1,153 +1,105 @@
-# learning-harness *(working name)*
+# learning-harness
 
-An open-source **learning harness**: a file protocol + tutor rulebook that turns the AI
-subscription you already pay for (Claude Code, Codex, or a comparable agentic CLI) into a
-rigorous, personal tutor for **learn-by-building** topics.
+A file protocol + local web UI that turns the agentic CLI you already pay for — Claude
+Code, Codex, or similar — into a rigorous personal tutor for **learn-by-building** topics.
 
-No API keys, no hosted service, no metered costs. You bring your own frontier agent; the
-harness brings the structure that a bare "be my tutor" prompt can never have:
+No API keys, no hosted service, no accounts. Your course is generated into your clone as
+plain markdown and JSON: readable, versioned, yours.
 
-- **A course generated for you, just-in-time** — an onboarding interview produces your course
-  spine; each module (lesson, build task, starter scaffold, automated checks, sealed hints) is
-  generated when you reach it, calibrated to how the previous one actually went.
-- **Real feedback loops** — modules ship with runnable checks. Red → green is the unit of
-  progress, not "I think I get it." Generated checks are QA'd against a sealed reference
-  solution before you ever see them.
-- **Spaced repetition that actually runs** — every session opens with recall questions from a
-  quiz bank with due dates, intervals, and honest grading. Miss something and it comes back
-  sooner.
-- **Sealed, escalating hints** — nudge → approach → near-spoiler, revealed one level at a
-  time, never solutions. The tutor is forbidden from writing your code.
-- **Memory that survives the chat** — progress, quiz history, and a tutor journal live in
-  files, committed to git. Any session, any model, picks up exactly where you left off.
+**Status: v0.** Extracted incrementally from a live course; every rule in the protocol
+exists because its absence caused a real failure there. Expect breaking format changes —
+see [docs/ROADMAP.md](docs/ROADMAP.md).
 
-## Status: v0 skeleton — extracted from a live course
+## What it does
 
-This protocol is being extracted **incrementally** from a real course
-(AI-engineering fundamentals: RAG, agents, evals) currently being run by its first learner.
-Every rule in `CLAUDE.md` exists because its absence caused a real failure there. Expect
-breaking format changes until the source course completes; see `docs/ROADMAP.md`.
+- Builds your course from an onboarding interview, then generates it **one module at a
+  time** — each calibrated to how the previous one actually went.
+- Modules are built, not read: a lesson, a build task, a scaffold that runs but fails its
+  checks, and automated checks **you** run. Red → green is the unit of progress.
+- Hints are sealed and escalate (nudge → approach → near-spoiler). The tutor is forbidden
+  from writing your solution code.
+- Every session opens with a recall quiz — spaced repetition with due dates and honest
+  grading.
+- State survives the chat: progress, quiz bank, and a tutor journal live in files,
+  committed to git at every session close. Any session, any model, picks up where you left
+  off.
 
-## Honest scope
+Honest scope: built for topics where progress is machine-checkable — programming, tools,
+technical systems. Topics with no runnable output would degrade into quiz-and-judge
+tutoring, and this tool doesn't pretend to be that.
 
-The harness's sharpest tool is machine-checkable progress. It is built for topics you learn
-by **building** — programming, tools, technical systems — where a scaffold can compile and
-checks can fail. Topics without executable output (languages, theory-only subjects) would
-degrade to quiz-and-judge tutoring; that is a different product, and this one does not
-pretend to be it.
+## Setup
 
-## How to use it (v0)
-
-You need: `git`, Node 18+, and an agentic CLI you already use (Claude Code, Codex, …).
-
-1. Clone this repo **into a folder named after your course** — one clone per course:
-
-   ```
-   git clone https://github.com/sqmch/learning-harness learn-rust
-   cd learn-rust
-   ```
-
-2. `npm install`, then `npm run dev` (any OS), and open **http://localhost:5173**.
-3. You land on the welcome screen with a live terminal beside it. Click **launch** (it types
-   your agent's command — `claude` by default; the ⚙ picker switches it to `codex` or any
-   other CLI), then **new course** — the tutor interviews you (topic, goals, background,
-   hours/week, what "done" looks like), drafts your course arc, and asks you to review it
-   before building anything. The page becomes your course the moment your first module
-   exists.
-4. Every sitting after that: open the study, click **start session**. The tutor runs your
-   due recall quiz, teaches, hands you the next build task, and updates your files at close.
-5. Run checks yourself (the **run checks** button, or `npm run check` inside a module's
-   scaffold). Ask for hints when stuck; they unseal one level at a time.
-
-Prefer a bare terminal? Everything works without the study too — open the repo in your
-agent and say "new course" / "start session"; the UI is a lens, not a dependency.
-
-Everything the tutor knows about you lives in `tutor/` and `curriculum/` in this repo —
-plain markdown and JSON, yours to read, version, and delete. Your course grows *inside your
-clone*; this repo is both the engine and your instance.
-
-## How it works, concretely
-
-**Onboarding** is an interview, not a form: your topic, what "done" looks like (a capability,
-not a vibe), your honest background, the hours you'll really spend. From that the tutor
-drafts `COURSE.md` — the course spine: phases, a module arc, and where the boss-checks
-(phase gates you must genuinely pass) fall — and you review and push back on the arc
-*before* anything gets built.
-
-**A module** is a directory the tutor writes when you reach it — never in advance,
-calibrated to how the previous one actually went:
+You need `git`, Node 18+, and an agentic CLI you already use.
 
 ```
-curriculum/03-rag-pipeline/
-  LESSON.md      ← the teaching: concepts, worked examples, why it's built this way
-  BRIEF.md       ← the build task and its acceptance criteria
-  scaffold/      ← runs, but fails checks — the load-bearing parts are TODO(you) gaps
-  checks/        ← automated tests you run yourself; they grade behavior, never internals
-  hints/         ← sealed: hint-1 nudge → hint-2 approach → hint-3 near-spoiler
-  quiz.md        ← retrieval questions that feed the spaced-repetition bank
+git clone https://github.com/sqmch/learning-harness learn-rust   # name it after your course
+cd learn-rust
+npm install
+npm run dev          # → http://localhost:5173
 ```
 
-Before you ever see a module, the tutor must write a hidden reference solution, prove the
-checks pass on it, strip it back to the scaffold, prove they now fail — then delete it.
-(That QA rule exists because it kept catching real materials bugs.)
+In the UI: click **launch** (starts your agent in the embedded terminal — `claude` by
+default; the ⚙ picker switches it to `codex` or any other CLI), then **new course**. The
+tutor interviews you — topic, goals, background, hours per week — drafts a course arc, and
+asks you to review it before building anything. When module 00 exists, the page becomes
+your course.
 
-**A session**: say "start session" → recall quiz on whatever's due → a mini-lesson on the
-next concept, with a worked example that parallels (but isn't) your task → the task is
-handed over → you write code in your own editor and run the checks → stuck means hints, one
-sealed level at a time, never the answer → at close the tutor updates your progress, banks
-new quiz items, journals what happened, and commits.
+## A session, day to day
 
-The full protocol is `CLAUDE.md` — it *is* the product, and it's short; read it. File
-formats live in `docs/FORMAT.md`.
+1. `npm run dev`, click **start session**.
+2. The tutor quizzes you on what's due, teaches the next concept, hands you the build task.
+3. You write code in your own editor (**edit** opens it) and run the module's checks
+   (**run checks**, or `npm run check` inside the module's scaffold).
+4. Stuck? Ask for a hint — they unseal one level at a time.
+5. Say you're done: the tutor updates progress, banks new quiz questions, journals the
+   session, and commits.
 
-**Bring your own agent.** Claude Code reads `CLAUDE.md` natively; `AGENTS.md` points Codex
-and other AGENTS.md-convention tools at the same protocol. Anything else: open your agent
-and tell it "read CLAUDE.md and follow it".
+No UI required: open the repo in your agent and say "new course" / "start session" — the
+web UI is a lens over the same files, never a dependency.
 
-## Your copy vs. the canvas
+## The study (the web UI)
 
-The published repo is the **empty canvas** — nobody's course lives upstream. Your clone is
-**your instance**: the course files the tutor creates (`COURSE.md`, `curriculum/`, `tutor/`)
-occupy paths the engine never ships, so they're yours to commit — the tutor commits at every
-session close, making your learning history part of your repo's history.
+Local only; owns zero state. A course rail with your progress, a typeset
+lesson/brief/quiz pane, an embedded terminal with the quick actions above, and **◇ lab** —
+interactive visualizations the tutor claims or generates per module, embedded in lessons
+and available full-screen.
 
-**Getting engine updates.** Because engine paths and course paths are disjoint, pulling from
-the canvas brings you engine improvements (study fixes, protocol changes) without ever
-touching your course. `npm run update` does it for you — or `git pull` by hand.
+## Updates, backup, more courses
 
-**Backing your course up to your own GitHub.** Clone (don't use GitHub's "Use this template"
-— template copies sever the git history that updates flow through), then repoint the remotes:
+Engine files and course files occupy disjoint paths, so pulling from this repo updates the
+machinery without touching your course: `npm run update` (or plain `git pull`).
+
+To back your course up on your own GitHub — clone, don't use "Use this template" (template
+copies sever the history that updates flow through) — repoint the remotes:
 
 ```
-git remote rename origin upstream          # the canvas — engine updates come from here
-git remote add origin <your-empty-repo>    # your course history goes here
+git remote rename origin upstream        # engine updates keep coming from here
+git remote add origin <your-repo>
 git push -u origin master
 ```
 
-`npm run update` finds `upstream` automatically from then on.
+Another course is another clone, named after it. Run two side by side with
+`PORT=7332 npm run dev`.
 
-**Multiple courses** are simply multiple clones, each named after its course. They're fully
-independent — separate git histories, separate tutors, separate sessions. To run two studies
-at once, give the second a port: `PORT=7332 npm run dev`.
+## Bring your own agent
 
-## The study — the way you'll actually want to work
+Claude Code reads the protocol (`CLAUDE.md`) natively; `AGENTS.md` points Codex and other
+AGENTS.md-convention tools at the same file. Anything else: tell it to read `CLAUDE.md`
+and follow it.
 
-A local web shell around the same files (nothing runs in a cloud; it owns zero state):
+## Docs
 
-```
-npm install && npm run dev     →  http://localhost:5173
-```
+- [`CLAUDE.md`](CLAUDE.md) — the tutor protocol; this is the actual product
+- [`docs/FORMAT.md`](docs/FORMAT.md) — the file formats a course is made of
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — status, plans, non-goals
+- [`study/LAB.md`](study/LAB.md) — how course-owned visualizations work
 
-- **Course rail** — your modules, progress, and current position
-- **Typeset doc pane** — lessons, briefs, and quizzes, readable like a book
-- **Embedded terminal** — a real PTY in your course repo, with quick actions
-  (launch your agent · start session · run the current module's checks · open your editor);
-  the ⚙ picker sets which agent (claude / codex / gemini / custom) and which editor
-  (VS Code / Zed / Cursor / custom) the buttons use
-- **◇ lab** — interactive visualizations, owned by the course: the tutor claims a stock lab
-  (e.g. vector geometry) or generates a module's own interactive HTML, embeds it in the
-  lesson where the picture belongs, and full-screens it here; the button only exists once
-  your course has something to show
+## Contributing
 
-The study serves whichever repo holds your course: by default this one (the clone-and-go
-case); point it elsewhere with `--repo <path>` or the `HARNESS_REPO` env var.
+It's v0 and the formats are still moving — open an issue before building anything sizable.
+Reports from real course runs are the most valuable thing you can send.
+
+## License
+
+[MIT](LICENSE)

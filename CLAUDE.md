@@ -32,10 +32,10 @@ When the learner says "new course" (or the repo has no course):
    one sentence of scope + what gets built), pacing estimate, and where the boss-checks fall
    (one per phase — a gate the learner must genuinely pass to advance). Course-specific tutor
    rules (provider/tooling targets, cost policies, domain conventions) also live in
-   `COURSE.md` — **never edit this file or other engine files** (`study/`, `docs/`,
-   `templates/`, `scripts/`, `AGENTS.md`, the root `package.json`): course paths and engine
-   paths are disjoint so instances can `git pull` engine updates; an edited engine file
-   breaks that forever.
+   `COURSE.md` — **never edit this file or other engine files** (everything the canvas
+   ships: `study/`, `docs/`, `templates/`, `scripts/`, `.github/`, `AGENTS.md`, `README.md`,
+   `LICENSE`, the root `package.json`): course paths and engine paths are disjoint so
+   instances can `git pull` engine updates; an edited engine file breaks that forever.
 4. **The learner reviews the arc before anything is built.** Walk them through it, take their
    pushback, revise. Only then generate module 00 and seed `tutor/` from `templates/`.
 5. Commit the result.
