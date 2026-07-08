@@ -3,6 +3,9 @@
   "private": true,
   "license": "MIT",
   "repository": "github:sqmch/coursesmith",
+  "bin": {
+    "coursesmith": "scripts/bootstrap.mjs"
+  },
   "workspaces": [
     "study"
   ],
