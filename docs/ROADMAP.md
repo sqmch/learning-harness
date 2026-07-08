@@ -33,7 +33,8 @@ source course completes its final phase.
       course converted in place into a proper instance (engine merged in, its course rules
       now in its `COURSE.md`). This repo is the single source of truth for the protocol;
       rules earned in source-course sessions are applied here first and pulled down like any
-      instance update. The old porting queue (source repo's `GENERALIZATION.md`) is closed.
+      instance update. The old porting queue (the source course's own `GENERALIZATION.md`,
+      not a file in this repo) is closed.
 - [ ] Keep earning rules from live sessions — they land here directly now
 - [ ] Formats stabilize as the source course's later phases (agents, evals) stress them —
       expect additions: agent-module scaffolds, run traces, boss-check records, eval modules'

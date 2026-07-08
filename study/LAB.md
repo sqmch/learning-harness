@@ -25,10 +25,11 @@ obvious — normalize, and every arrow snaps to the same on-screen length while 
 direction. The lab makes that one image do the teaching. Notation is optional (a "show the
 arithmetic" toggle), numbers and motion are primary.
 
-This is **learning-serving supplementary content**, the kind the tutor "may freely generate"
-(`PLATFORM.md` → Tutor layer). It is *not* one of the Phase-3-frozen platform features (quiz UI,
-WebContainers, hosted edition, tutor-agent service), and it's exempt from the displacement-trap
-guard for the same reason content/architecture work is: it serves the current module directly.
+This is **learning-serving supplementary content**, the kind the tutor generates as part of a
+module (`CLAUDE.md` → Module generation). It is *not* one of the deferred platform features
+(quiz UI, WebContainers, hosted edition, tutor-agent service), and it's exempt from the
+displacement-trap guard for the same reason content/architecture work is: it serves the
+current module directly.
 
 ## Design invariants (kept)
 
@@ -163,8 +164,8 @@ in that box.
 Planned labs no longer render placeholder cards in the app — a course only ever sees visuals
 it has claimed or shipped. Later candidates: softmax/temperature, tokenization, attention as
 a weighted sum, a 2-D projection (PCA) of *real* embedded points. Add them when a live
-course's module needs them — never speculatively (cf. `PLATFORM.md` → "premature
-generality").
+course's module needs them — never speculatively (cf. `docs/ROADMAP.md` — nothing
+lands here until a live course needs it).
 
 ## Lab #1 — what it does
 
@@ -210,5 +211,6 @@ study app code — the "generic-dev" layer the tutor builds — not curriculum.
 This doc is the **dedicated plan** for the lab. The explicit-decision moment anticipated here
 happened on **2026-07-02** (full-repo audit, learner-mandated): with two labs live and lab.json
 generation folded into the module-generation protocol in `CLAUDE.md`, the lab was judged
-load-bearing and `PLATFORM.md` now carries a pointer (cockpit paragraph, freeze-exemption note).
-`CURRICULUM.md` remains untouched — the lab supplements modules; it isn't part of the spine.
+load-bearing. `docs/ROADMAP.md` records the two live labs and `docs/FORMAT.md` documents
+`lab.json`. The lab supplements modules; it isn't part of a course's spine (`COURSE.md`) — a
+module claims a lab through its own `lab.json`, never the spine.
