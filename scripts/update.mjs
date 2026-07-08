@@ -91,9 +91,23 @@ function main() {
   }
 
   // 3) PULL, then auto-install if the merge changed any package manifest or lock.
+  //    --no-edit: an instance has its own commits, so the pull is usually a real
+  //    merge, and git would open an editor for the message — which hangs or dies
+  //    on machines whose editor git can't launch (a broken core.editor stranded
+  //    instance #1 mid-merge on 2026-07-09). The default message is always right
+  //    here; nobody edits an engine-update merge message.
   const oldHead = run("git rev-parse HEAD");
   console.log(`[update] pulling engine updates from ${remote}/${branch} ...`);
-  execSync(`git pull ${remote} ${branch}`, { stdio: "inherit" });
+  try {
+    execSync(`git pull --no-edit ${remote} ${branch}`, { stdio: "inherit" });
+  } catch {
+    die(
+      `[update] the pull did not complete cleanly. Check \`git status\`:\n` +
+        `  - conflicts        → resolve them, then \`git commit\`\n` +
+        `  - merge unfinished → \`git commit --no-edit\` completes it\n` +
+        `  then run \`npm run update\` again to finish the dependency step.`,
+    );
+  }
   const newHead = run("git rev-parse HEAD");
 
   const deps =
