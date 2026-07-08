@@ -1,0 +1,6 @@
+# Force new issues through the two templates rather than a blank editor.
+blank_issues_enabled: false
+contact_links:
+  - name: How to contribute
+    url: https://github.com/sqmch/coursesmith/blob/master/CONTRIBUTING.md
+    about: Read this first — running the gate, the engine/instance split, and what a good course-run report contains.

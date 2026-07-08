@@ -1,0 +1,11 @@
+{
+  "id": "07-retry-backoff",
+  "title": "Retry with Exponential Backoff",
+  "phase": 2,
+  "phaseName": "Reliability",
+  "prerequisites": [],
+  "runtime": "node",
+  "estimatedHours": 2,
+  "provenance": "core",
+  "volatileLayer": "generated-at-start"
+}

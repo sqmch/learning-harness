@@ -16,8 +16,17 @@ import prettier from "eslint-config-prettier";
 
 export default tseslint.config(
   {
-    // Build output, vendored deps, and every course path stay unlinted.
-    ignores: ["**/dist/**", "**/node_modules/**", "curriculum/**", "tutor/**"],
+    // Build output, vendored deps, and every course path stay unlinted. The
+    // illustrative example module (docs/example-module/) is course-shaped content,
+    // not engine source — its scaffold ships deliberate TODO(you) gaps — so it's
+    // excluded here for the same reason curriculum/ is.
+    ignores: [
+      "**/dist/**",
+      "**/node_modules/**",
+      "curriculum/**",
+      "tutor/**",
+      "docs/example-module/**",
+    ],
   },
   {
     // A disable comment that no longer suppresses anything is a lie — fail on it,

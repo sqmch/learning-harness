@@ -1,0 +1,9 @@
+{
+  "name": "example-retry-backoff-scaffold",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "vitest run"
+  },
+  "note": "Illustrative sketch — dependencies are NOT installed here. A real scaffold lists vitest + typescript under devDependencies, ships a tsconfig.json, and gitignores node_modules. See docs/FORMAT.md."
+}

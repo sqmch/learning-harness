@@ -6,6 +6,10 @@ protocol. The course is generated into your clone, one module at a time, as plai
 markdown and JSON. No API keys, no hosted service, no accounts: the tutor is your own
 CLI agent, and all state lives in your files.
 
+![The coursesmith study running a live course: a course rail with module progress on the left, the module lesson typeset in the centre pane, and the tutor — an agentic CLI — mid-session in an embedded terminal on the right.](docs/assets/study.png)
+
+*The study over a live course: the rail and its progress, the lesson/brief/quiz pane, and the tutor session in the terminal — all read from the course's own files.*
+
 **Status: v0.** Extracted incrementally from a live course; every rule in the protocol
 exists because its absence caused a real failure there. Expect breaking format changes —
 see [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -31,6 +35,20 @@ tutoring, which this tool doesn't attempt.
 ## Setup
 
 You need `git`, Node 18+, and an agentic CLI you already use.
+
+Run the bootstrap straight from GitHub with `npx` — it clones the engine into a
+directory named after your course, and installs:
+
+```
+npx github:sqmch/coursesmith new learn-rust   # names the clone after your course
+cd learn-rust
+npm run dev          # → http://localhost:5173
+```
+
+`new` also takes `--backup <your-repo-url>` to wire your own GitHub repo as the
+backup remote in the same step (see [Updates, backup, more courses](#updates-backup-more-courses))
+and `--from <url>` to clone a fork. The equivalent by hand — a plain clone, not
+"Use this template", which severs the history updates flow through:
 
 ```
 git clone https://github.com/sqmch/coursesmith learn-rust   # name it after your course
@@ -79,7 +97,9 @@ Engine files and course files occupy disjoint paths, so pulling from this repo u
 machinery without touching your course: `npm run update` (or plain `git pull`).
 
 To back your course up on your own GitHub — clone, don't use "Use this template" (template
-copies sever the history that updates flow through) — repoint the remotes:
+copies sever the history that updates flow through) — wire your repo as the backup remote.
+`coursesmith new <name> --backup <your-repo>` does this at setup; on an existing clone it's
+the same rename by hand (and the first push, which the flag leaves to you):
 
 ```
 git remote rename origin upstream        # engine updates keep coming from here
@@ -107,6 +127,9 @@ and follow it.
 
 It's v0 and the formats are still moving — open an issue before building anything sizable.
 Reports from real course runs are the most valuable thing you can send.
+[CONTRIBUTING.md](CONTRIBUTING.md) covers how to run the gate, the engine/instance split, and
+what a good course-run report contains; [`docs/example-module/`](docs/example-module/) is a
+worked example of what a module is made of.
 
 ## License
 

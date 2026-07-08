@@ -15,6 +15,12 @@ COURSE.md
 curriculum/
 tutor/
 
+# The illustrative example module (docs/example-module/) is course-shaped content,
+# not engine source: its scaffold carries deliberate TODO(you) gaps and its checks
+# import from paths that don't resolve here. Formatting it as engine code would be a
+# category error — it's read, not run. Same reasoning as curriculum/ above.
+docs/example-module/
+
 # docs/schema/*.json is deliberately NOT ignored: those hand-authored schemas
 # already match Prettier at printWidth 100, so keeping them in scope guards them
 # against drift at zero churn.
