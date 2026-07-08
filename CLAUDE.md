@@ -49,14 +49,18 @@ the per-module content adapts.
 When the learner says "start session" (or similar):
 
 1. Read `tutor/progress.json`, `tutor/quiz-bank.json`, and the last few entries of
-   `tutor/journal.md`.
-2. **Recall quiz:** pick 2–3 due items (today ≥ `due`), **most-overdue first**. If the due
+   `tutor/journal.md`. **Run `npm run doctor` first** and reconcile any desync it reports
+   before the recall quiz — never grade on top of an unclosed session.
+2. **Recall quiz:** pick 2–3 due items (today ≥ `due`), **most-overdue first**
+   (`npm run quiz -- due` lists them that way and prints the backlog count). If the
    backlog is larger than that, say so ("7 items due; asking the 3 most overdue") — never
    silently skip it, never dump it all. After a long break (backlog > 6), extend to 4–5 items
    and drain the rest across the next sessions. Ask one at a time, conversationally. Grade
-   honestly: correct → `interval = interval * 2.5` (min 2 days); partial → `interval = 2`;
-   wrong → `interval = 1`; set new `due`; log in `history`. **History entries only for items
-   actually asked** — bookkeeping fixes get `result: "rescheduled"`, never a fake grade.
+   with `npm run quiz -- grade <id> <correct|partial|wrong>` — the tutor judges, the script
+   does the interval arithmetic and the `due` + `history` write; hand-edited intervals are how
+   a close-time reseed once flattened module 01's earned spacing and its quiz silently never
+   came due again. **History entries only for items actually asked** — a bookkeeping move is
+   `npm run quiz -- reschedule <id> <date>` (`result: "rescheduled"`), never a fake grade.
 3. State where we are in one sentence, then continue the current module.
    **Resuming instead:** if the learner says "resume session" (the study's button types
    this when it finds a fresh interrupted conversation) or the conversation itself resumes
@@ -70,15 +74,19 @@ When the learner says "start session" (or similar):
    course progresses: early phases actively teach; by the later phases the learner reads
    `LESSON.md` solo and the tutor only probes.
 5. On session end (learner says so, or natural stopping point): update `progress.json`
-   (module status, hint usage, check attempts), add new quiz items for concepts covered today
-   (`interval: 1`, due tomorrow). **Seed-only at close — no pre-test**; the first grading of a
+   (module status, hint usage, check attempts), seed new quiz items for concepts covered
+   today with `npm run quiz -- seed <module> <id> "<question>"` (it sets `interval: 1`, due
+   tomorrow, empty history). **Seed-only at close — no pre-test**; the first grading of a
    new item happens at the next session open. Preview the next session in one line.
 6. **Append a session entry to `tutor/journal.md`**: date, what was covered, where the learner
    struggled or shone (specifics — "confused X with Y", not "did the topic"), open threads,
    and any pedagogy decisions made. The journal is the tutor's cross-session memory — the
    repo remembers so the model doesn't have to.
-7. **Commit at session close.** State changes must be auditable; a lost edit to this file once
-   went undetected for two weeks.
+7. **Commit at session close** — and treat the close as atomic: progress, quiz-bank, journal,
+   and the commit land together, then **verify with `npm run doctor`** (it fails on
+   graded-but-unjournaled or uncommitted state). State changes must be auditable; a lost edit
+   to this file once went undetected for two weeks, and on 2026-07-05 a close graded the quiz
+   bank but never journaled, synced progress, or committed.
 
 ## Module generation (just-in-time)
 
@@ -114,7 +122,8 @@ When the learner completes a module, generate the next one per the `COURSE.md` s
 **QA before handover (non-negotiable):** before the learner sees a module, write a sealed
 reference solution, run the checks against it (must be all green), then strip it back to the
 scaffold and confirm the checks all fail *on assertions* (not on crashes). Delete the
-reference. This discipline exists because it repeatedly caught real materials bugs.
+reference, then run `npm run validate` — the module's `module.json` and `lab.json` must pass
+the schema check. This discipline exists because it repeatedly caught real materials bugs.
 
 **Check-design rules (learned the hard way):**
 - Grade observable behavior, never implementation details.

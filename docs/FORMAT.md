@@ -3,6 +3,9 @@
 These formats are the de facto schema extracted from the first live course. They are what the
 tutor protocol reads/writes and what the study (the bundled UI) renders.
 
+The precise, machine-checkable spec lives in [`docs/schema/`](schema/) (JSON Schema draft-07);
+`npm run validate` checks a course against it. The prose below is the annotated tour.
+
 ## Repository layout
 
 ```
@@ -89,6 +92,13 @@ APIs), and always QA'd against a sealed reference solution first.
   ]
 }
 ```
+
+**`scripts/quiz.mjs` is the writer of record** for `interval`, `due`, and `history`
+(`npm run quiz -- grade|tutored|seed|reschedule`): the tutor judges the answer, the script does
+the arithmetic and the history append, so an earned interval can't be flattened by a hand edit
+(it was, once — a close-time reseed sent module 01's quiz dark). It emits exactly this shape —
+2-space JSON, one-line history entries, trailing newline — to keep a single grade's git diff to
+a few lines.
 
 ## tutor/journal.md
 

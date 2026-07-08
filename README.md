@@ -57,7 +57,8 @@ exists, the page becomes your course.
    (**run checks**, or `npm run check` inside the module's scaffold).
 4. Stuck? Ask for a hint — they unseal one level at a time.
 5. Say you're done: the tutor updates progress, banks new quiz questions, journals the
-   session, and commits.
+   session, and commits. (`npm run doctor` verifies that close actually landed — nothing
+   graded but unjournaled, nothing left uncommitted.)
 
 No UI required: open the repo in your agent and say "new course" / "start session" — the
 web UI is a lens over the same files, never a dependency.
