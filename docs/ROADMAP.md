@@ -44,8 +44,10 @@ source course completes its final phase.
 
 - [ ] **Example course pack**: the completed AI-engineering course (content only — no learner
       data) as the bundled proof and reference implementation
-- [ ] New labs land with the source course's modules (Top-k Retrieval, Precision & Recall are
-      registered as planned; see `study/src/lab/registry.ts`)
+- [x] New labs land with the source course's modules (Top-k Retrieval and Precision & Recall
+      shipped 2026-07-08, ahead of instance #1's modules 03–04 by explicit decision — those
+      modules claim them via `lab.json` at generation; see `study/src/lab/registry.ts` and
+      `study/LAB.md`)
 - [ ] Onboarding polish: the interview → spine → review flow hardened against learners other
       than learner #1
 - [ ] Install UX (`npx`-style bootstrap: named clone + remotes wired for updates — NOT a

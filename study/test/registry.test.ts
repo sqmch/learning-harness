@@ -44,6 +44,28 @@ describe("buildEntries", () => {
     expect(entries[0].stock?.id).toBe("vectors");
   });
 
+  test("the retrieval stock labs (topk, precision-recall) resolve by their config keys", () => {
+    const entries = buildEntries([
+      mod("03-rag-pipeline", { topk: { k: 4 } }),
+      mod("04-rag-quality", { "precision-recall": { cutoff: 3 } }),
+    ]);
+    expect(entries.map((e) => e.key)).toEqual(["topk", "precision-recall"]);
+    expect(entries[0]).toMatchObject({
+      key: "topk",
+      kind: "stock",
+      title: "Top-k Retrieval",
+      modules: ["03-rag-pipeline"],
+    });
+    expect(entries[1]).toMatchObject({
+      key: "precision-recall",
+      kind: "stock",
+      title: "Precision & Recall",
+      modules: ["04-rag-quality"],
+    });
+    // the hyphenated key survives as both the stock id and the entry key
+    expect(entries[1].stock?.id).toBe("precision-recall");
+  });
+
   test("one stock lab claimed by several modules → a single entry accumulating modules", () => {
     const entries = buildEntries([
       mod("01-embeddings", { vectors: {} }),

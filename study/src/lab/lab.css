@@ -1,4 +1,4 @@
-/* ── math lab — reuses the study's :root tokens (monochrome) ────────────── */
+/* ── math lab — reuses the study's :root tokens (neutral, two themes) ────── */
 
 .lab-overlay {
   position: fixed;
@@ -32,17 +32,18 @@
 }
 .lab-mark { color: var(--ink-dim); margin-right: 2px; }
 .lab-sub {
-  font-family: var(--mono);
-  font-size: 10.5px;
-  color: var(--ink-faint);
+  font-family: var(--sans);
+  font-size: 11px;
+  color: var(--ink-dim);
   margin-left: 10px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.005em;
   font-weight: 400;
 }
 .lab-close {
-  font-family: var(--mono);
-  font-size: 10.5px;
-  letter-spacing: 0.05em;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.005em;
   color: var(--ink-dim);
   background: transparent;
   border: 1px solid var(--line);
@@ -74,11 +75,12 @@
   gap: 6px;
 }
 .lab-rail-heading {
-  font-family: var(--mono);
-  font-size: 10px;
+  font-family: var(--sans);
+  font-size: 10.5px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.16em;
-  color: var(--ink-faint);
+  letter-spacing: 0.14em;
+  color: var(--ink-dim);
   margin-bottom: 10px;
 }
 .lab-rail-item {
@@ -106,11 +108,12 @@
   flex-wrap: wrap;
 }
 .lab-chip {
-  font-family: var(--mono);
+  font-family: var(--sans);
   font-size: 8.5px;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--ink-faint);
+  color: var(--ink-dim);
   border: 1px solid var(--line);
   border-radius: 99px;
   padding: 1px 7px;
@@ -130,15 +133,15 @@
   margin-top: 6px;
 }
 .lab-rail-foot {
-  font-family: var(--mono);
-  font-size: 10px;
-  line-height: 1.7;
-  color: var(--ink-faint);
+  font-family: var(--sans);
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--ink-dim);
   border-top: 1px solid var(--line-soft);
   padding-top: 12px;
   margin-top: auto;
 }
-.lab-rail-foot code { color: var(--ink-dim); }
+.lab-rail-foot code { font-family: var(--mono); color: var(--ink); }
 
 /* ── lab main ── */
 .lab-main { overflow: auto; min-width: 0; display: flex; flex-direction: column; }
@@ -163,11 +166,12 @@
 }
 .lab-focus-tag {
   flex: none;
-  font-family: var(--mono);
+  font-family: var(--sans);
   font-size: 9px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--ink-faint);
+  letter-spacing: 0.1em;
+  color: var(--ink-dim);
   border: 1px solid var(--line);
   border-radius: 99px;
   padding: 1px 7px;
@@ -240,7 +244,7 @@
   font-size: 11px;
   letter-spacing: 0.04em;
 }
-.lab-sector { fill: rgba(255, 255, 255, 0.06); stroke: none; }
+.lab-sector { fill: var(--wash); stroke: none; }
 .lab-angle-label {
   fill: var(--ink-dim);
   font-family: var(--mono);
@@ -264,10 +268,10 @@
 .lab-proj-dot { fill: var(--ink-dim); }
 
 .lab-hint {
-  fill: var(--ink-faint);
-  font-family: var(--mono);
+  fill: var(--ink-dim);
+  font-family: var(--sans);
   font-size: 11px;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.02em;
   text-anchor: middle;
   animation: lab-hint-pulse 1.8s ease-in-out infinite;
 }
@@ -321,11 +325,12 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  font-family: var(--mono);
+  font-family: var(--sans);
   font-size: 10.5px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--ink-faint);
+  letter-spacing: 0.08em;
+  color: var(--ink-dim);
 }
 .vlab-big { font-family: var(--mono); font-size: 26px; font-weight: 600; color: var(--hi); letter-spacing: -0.01em; }
 
@@ -459,8 +464,9 @@
 
 .vlab-duality { background: var(--bg-panel); }
 .vlab-duality-head {
-  font-family: var(--mono);
+  font-family: var(--sans);
   font-size: 10.5px;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--ink-dim);
@@ -502,9 +508,10 @@
   border-radius: 7px;
   padding: 10px 13px;
   cursor: pointer;
-  font-family: var(--mono);
-  font-size: 11.5px;
-  letter-spacing: 0.02em;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.005em;
   color: var(--ink-dim);
   transition: all 140ms;
 }
@@ -521,11 +528,12 @@
 .lab-toggle.on .lab-toggle-dot { background: var(--ink); border-color: var(--ink); box-shadow: inset 0 0 0 2px var(--bg-panel); }
 
 .vlab-presets-label {
-  font-family: var(--mono);
+  font-family: var(--sans);
   font-size: 10px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--ink-faint);
+  letter-spacing: 0.1em;
+  color: var(--ink-dim);
   margin-bottom: 9px;
 }
 .vlab-presets-row { display: flex; flex-wrap: wrap; gap: 7px; }
@@ -534,8 +542,9 @@
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 6px 10px;
-  font-family: var(--mono);
-  font-size: 10.5px;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 500;
   color: var(--ink-dim);
   cursor: pointer;
   transition: all 140ms;
@@ -640,7 +649,7 @@
   z-index: 0;
   border-left: 1px dashed var(--ink-faint);
   border-right: 1px dashed var(--ink-faint);
-  background: rgba(255, 255, 255, 0.035);
+  background: var(--wash-soft);
   border-radius: 2px;
   pointer-events: none;
 }
@@ -650,9 +659,9 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--ink-faint);
+  font-family: var(--sans);
+  font-size: 11px;
+  color: var(--ink-dim);
 }
 .clab-leg::before {
   content: "";
@@ -667,7 +676,7 @@
   background: repeating-linear-gradient(-45deg, var(--bg-raised) 0 4px, transparent 4px 8px);
 }
 .clab-leg.fact::before {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--wash);
   border-style: dashed;
   border-color: var(--ink-faint);
 }
@@ -704,12 +713,13 @@
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  font-family: var(--mono);
-  font-size: 11.5px;
-  letter-spacing: 0.02em;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.005em;
   color: var(--ink-dim);
 }
-.clab-slider-val { color: var(--hi); font-weight: 600; }
+.clab-slider-val { font-family: var(--mono); color: var(--hi); font-weight: 600; }
 .clab-slider input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
@@ -744,4 +754,203 @@
 @media (max-width: 920px) {
   .clab { grid-template-columns: minmax(0, 1fr); }
   .clab-stage { border-right: none; border-bottom: 1px solid var(--line); }
+}
+
+/* ── top-k retrieval lab ──────────────────────────────────────────────────
+   Reuses the vectors-lab plane layout (.vlab / .vlab-stage / .vlab-svg) and the
+   panel primitives (.vlab-card / .vlab-model / .vlab-coach / .clab-slider). Adds
+   the corpus points, the query marker, retrieval connectors, and a ranked list. */
+
+/* the query's direction ray + the connectors to each retrieved chunk */
+.tk-query-ray { stroke: var(--ink-faint); stroke-width: 1.25; stroke-dasharray: 3 4; }
+.tk-conn { stroke: var(--hi); stroke-width: 1.25; stroke-opacity: 0.5; }
+
+/* corpus chunks — filled + numbered when retrieved, hollow when left behind */
+.tk-chunk.in .tk-dot { fill: var(--hi); stroke: var(--hi); }
+.tk-chunk.out .tk-dot { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.5; }
+.tk-rank {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--ink);
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+.tk-rank.junk { fill: var(--ink-faint); font-weight: 500; }
+
+/* the draggable query diamond */
+.tk-query-mark { fill: var(--hi); stroke: var(--bg); stroke-width: 1.5; }
+
+/* budget pills: signal vs junk in the retrieved set */
+.tk-budget {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 13px;
+}
+.tk-budget-pill {
+  font-family: var(--sans);
+  font-size: 11px;
+  color: var(--ink-dim);
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  padding: 2px 10px;
+}
+.tk-budget-pill b { font-family: var(--mono); color: var(--hi); font-weight: 600; margin-right: 3px; }
+.tk-budget-pill.junk b { color: var(--ink-dim); }
+.tk-budget-tok { font-family: var(--mono); font-size: 10.5px; color: var(--ink-faint); margin-left: auto; }
+
+/* the ranked list */
+.tk-floor-key { font-family: var(--mono); font-size: 10px; color: var(--ink-faint); letter-spacing: 0.03em; }
+.tk-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.tk-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 78px 38px;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 7px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  transition: background 140ms, border-color 140ms;
+}
+.tk-row.in { background: var(--bg-panel); border-color: var(--line); }
+.tk-row.out { opacity: 0.55; }
+.tk-row.in.below { border-color: var(--ink-faint); border-style: dashed; }
+.tk-rank-badge { font-family: var(--mono); font-size: 10.5px; color: var(--ink-faint); text-align: right; }
+.tk-row.in .tk-rank-badge { color: var(--ink); }
+.tk-text {
+  font-family: var(--sans);
+  font-size: 12px;
+  color: var(--ink-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tk-row.in .tk-text { color: var(--ink); }
+.tk-bar {
+  position: relative;
+  height: 7px;
+  background: var(--bg-deep);
+  border: 1px solid var(--line-soft);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.tk-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--ink-faint);
+  transition: width 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.tk-row.in .tk-bar-fill { background: var(--hi); }
+.tk-bar-floor { position: absolute; top: -1px; bottom: -1px; width: 1px; background: var(--ink-dim); }
+.tk-score { font-family: var(--mono); font-size: 11px; color: var(--ink-dim); text-align: right; }
+.tk-row.in .tk-score { color: var(--ink); }
+.tk-cut {
+  grid-column: 1 / -1;
+  height: 0;
+  margin-top: 5px;
+  border-top: 2px solid var(--hi);
+}
+.tk-list-foot { margin: 12px 0 0; font-size: 11px; line-height: 1.55; color: var(--ink-faint); }
+.tk-query-text { margin: 2px 0 0; font-family: var(--mono); font-size: 11px; color: var(--ink-faint); }
+
+/* ── precision & recall lab ───────────────────────────────────────────────
+   Reuses the chunking-lab two-column layout (.clab / .clab-stage / .clab-panel)
+   and the card / model / coach primitives. The ranked list is DOM, the cutoff a
+   slider (.clab-slider) plus click-to-set on each row. */
+.prlab .clab-stage { justify-content: flex-start; }
+.prlab-cutoff { margin-top: 2px; }
+
+.prlab-list { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.prlab-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 20px 14px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 7px 10px;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: background 140ms, border-color 140ms;
+}
+.prlab-row:hover { border-color: var(--line); }
+.prlab-row.in { background: var(--bg-panel); }
+.prlab-row.out { opacity: 0.6; }
+.prlab-rank { font-family: var(--mono); font-size: 10.5px; color: var(--ink-faint); text-align: right; }
+.prlab-mark { width: 11px; height: 11px; border-radius: 50%; justify-self: center; }
+.prlab-row.rel .prlab-mark { background: var(--ink); }
+.prlab-row.in.rel .prlab-mark { background: var(--hi); }
+.prlab-row.irr .prlab-mark { border: 1.5px solid var(--ink-faint); background: transparent; }
+.prlab-text {
+  font-family: var(--sans);
+  font-size: 12.5px;
+  color: var(--ink-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.prlab-row.in .prlab-text { color: var(--ink); }
+.prlab-tag {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+.prlab-row.hit .prlab-tag { color: var(--ink); }
+
+.prlab-cutline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 5px 2px;
+}
+.prlab-cutline::before,
+.prlab-cutline::after { content: ""; flex: 1; height: 2px; background: var(--hi); border-radius: 2px; }
+.prlab-cutline span {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-dim);
+}
+
+.prlab-legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 4px; }
+.prlab-leg { font-family: var(--sans); font-size: 11px; color: var(--ink-dim); display: flex; align-items: center; gap: 7px; }
+.prlab-leg.rel { color: var(--ink); }
+.prlab-leg.inband::before {
+  content: "";
+  width: 18px;
+  height: 11px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--bg-panel);
+}
+
+.prlab-meter { height: 7px; margin: 14px 0 9px; background: var(--line); border-radius: 99px; overflow: hidden; }
+.prlab-meter-fill {
+  height: 100%;
+  background: var(--ink-dim);
+  border-radius: 99px;
+  transition: width 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.prlab-formula { margin: 0; font-family: var(--mono); font-size: 10.5px; line-height: 1.55; color: var(--ink-faint); }
+
+.prlab-counts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.prlab-count { display: flex; flex-direction: column; align-items: center; gap: 3px; text-align: center; }
+.prlab-count-n { font-family: var(--mono); font-size: 24px; font-weight: 600; color: var(--hi); }
+.prlab-count-k {
+  font-family: var(--sans);
+  font-size: 9.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-dim);
 }

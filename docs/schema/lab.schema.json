@@ -35,6 +35,6 @@
       }
     }
   },
-  "$comment": "additionalProperties is open: a claimed stock lab appears as its own config key (e.g. 'vectors', 'chunking'), whose internal shape is the lab's own contract (study/src/lab/registry.ts), not this schema's.",
+  "$comment": "additionalProperties is open: a claimed stock lab appears as its own config key (today 'vectors', 'chunking', 'topk', 'precision-recall'), whose internal shape is the lab's own contract (study/src/lab/registry.ts), not this schema's.",
   "additionalProperties": true
 }

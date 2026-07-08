@@ -2,6 +2,8 @@ import type { ComponentType } from "react";
 import type { ModuleInfo, ModuleLabConfig } from "../api";
 import { VectorSimilarityLab } from "./labs/VectorSimilarityLab";
 import { ChunkingOverlapLab } from "./labs/ChunkingOverlapLab";
+import { TopKRetrievalLab } from "./labs/TopKRetrievalLab";
+import { PrecisionRecallLab } from "./labs/PrecisionRecallLab";
 
 /** Props every stock lab component receives from the overlay. */
 export interface LabProps {
@@ -41,6 +43,18 @@ export const STOCK_LABS: StockLab[] = [
     title: "Chunking & Overlap",
     blurb: "Why long text gets split, and what overlapping windows buy you.",
     component: ChunkingOverlapLab,
+  },
+  {
+    id: "topk",
+    title: "Top-k Retrieval",
+    blurb: "Drag a query through a corpus. Feel what k buys (recall) and costs (junk).",
+    component: TopKRetrievalLab,
+  },
+  {
+    id: "precision-recall",
+    title: "Precision & Recall",
+    blurb: "Slide a cutoff over a ranked list; watch precision and recall pull apart.",
+    component: PrecisionRecallLab,
   },
 ];
 

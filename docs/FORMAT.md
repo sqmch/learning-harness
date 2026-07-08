@@ -74,11 +74,26 @@ APIs), and always QA'd against a sealed reference solution first.
       "completedAt": "2026-06-11",
       "hintsUsed": ["hint-1"],
       "checkAttempts": 3,
-      "notes": "free-form tutor notes: struggles, calibration decisions, open threads"
+      "notes": "free-form tutor notes: struggles, calibration decisions, open threads",
+      "bossCheck": {                // optional: the phase-gate trace for this module
+        "passedAt": "2026-06-11",   // ISO date the gate was genuinely passed; null while still failing
+        "attempts": [               // every attempt, pass OR fail — an auditable trace, not a memory
+          { "date": "2026-06-11", "outcome": "failed", "notes": "missed the continuation pattern" },
+          { "date": "2026-06-11", "outcome": "passed", "notes": "re-explained, then passed clean" }
+        ]
+      }
     }
   }
 }
 ```
+
+**`bossCheck` (optional, on modules that end a phase).** Distinct from
+`module.json`'s boolean `bossCheck` (which only flags that a module *is* a phase
+gate): this is the record of the learner going through that gate. `CLAUDE.md`
+requires the tutor to log every attempt here — `outcome` (`passed` | `failed`) plus
+one honest `notes` line — so a phase advance leaves an auditable trace rather than
+living only in the journal prose. `passedAt` is the date the gate was genuinely
+cleared, `null` until then.
 
 ## tutor/quiz-bank.json
 
@@ -92,21 +107,39 @@ APIs), and always QA'd against a sealed reference solution first.
       "interval": 3,                // days; ×2.5 on correct, 2 on partial, 1 on wrong
       "due": "2026-06-16",          // ISO date; due when today ≥ due
       "history": [
+        // GRADES ONLY — entries for items actually asked
         { "date": "2026-06-11", "result": "correct", "note": "…" }
-        // results: correct | partial | wrong | tutored | rescheduled
-        // entries ONLY for items actually asked (rescheduled = bookkeeping, not a grade)
+        // results: correct | partial | wrong | tutored
+      ],
+      "moves": [                    // optional: bookkeeping that is NOT a grade
+        { "date": "2026-06-13", "action": "rescheduled", "to": "2026-06-18", "note": "…" }
       ]
     }
   ]
 }
 ```
 
-**`scripts/quiz.mjs` is the writer of record** for `interval`, `due`, and `history`
-(`npm run quiz -- grade|tutored|seed|reschedule`): the tutor judges the answer, the script does
-the arithmetic and the history append, so an earned interval can't be flattened by a hand edit
-(it was, once — a close-time reseed sent module 01's quiz dark). It emits exactly this shape —
-2-space JSON, one-line history entries, trailing newline — to keep a single grade's git diff to
-a few lines.
+**Grades vs. bookkeeping.** `history` holds *grades* — `correct | partial | wrong | tutored`,
+one entry per item actually asked. A **reschedule** moves a due date without judging recall, so
+it is not a grade; it lands in **`moves`** (`{ date, action: "rescheduled", to, note? }`). This
+split exists because the old synthetic `"rescheduled"` *grade* was the format straining — a
+bookkeeping row wearing a grade's clothes.
+
+**Legacy banks (`rescheduled` in `history`).** Instances created before `moves` carry their
+reschedules as `{ "result": "rescheduled" }` entries inside `history`. That shape stays
+schema-valid (reality wins), and readers ignore it as a grade — the interval arithmetic never
+looks at `history`. Modernize a bank with **`npm run quiz -- migrate`**: it relocates every
+legacy `rescheduled` history entry into `moves`, carrying `date` and `note` but dropping `to`
+(the destination due date is unrecoverable from a legacy entry). Migrate is idempotent — a
+second run finds nothing and exits 0 — and byte-stable. Any command that loads a bank still
+carrying legacy entries prints a one-line hint pointing at `migrate`.
+
+**`scripts/quiz.mjs` is the writer of record** for `interval`, `due`, `history`, and `moves`
+(`npm run quiz -- grade|tutored|seed|reschedule|migrate`): the tutor judges the answer, the
+script does the arithmetic and the append, so an earned interval can't be flattened by a hand
+edit (it was, once — a close-time reseed sent module 01's quiz dark). It emits exactly this
+shape — 2-space JSON, one-line `history`/`moves` entries, trailing newline — to keep a single
+grade's or reschedule's git diff to a few lines.
 
 ## tutor/journal.md
 
@@ -130,7 +163,8 @@ in the engine.**
 
   // 1) CLAIM A STOCK LAB: carrying a stock lab's config key claims it for this
   //    module. The engine ships the components (see study/src/lab/registry.ts:
-  //    "vectors", "chunking"); the course decides which modules they serve.
+  //    "vectors", "chunking", "topk", "precision-recall"); the course decides
+  //    which modules they serve.
   "vectors": { /* lab-specific config — axes, example vectors, presets */ },
 
   // 2) SHIP YOUR OWN: self-contained HTML files under this module's visuals/.

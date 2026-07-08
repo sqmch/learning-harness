@@ -26,6 +26,36 @@ export interface ChunkingLabConfig {
   factLabel?: string;
   presets?: { label: string; size: number; overlap: number }[];
 }
+/** Config for the Top-k Retrieval lab — a 2-D corpus, a query, and the k knob. */
+export interface TopkLabConfig {
+  axisX?: string;
+  axisY?: string;
+  /** The draggable query point (a direction in the same 2-D space as the corpus). */
+  query?: { text?: string; v?: [number, number] };
+  /** The corpus: short chunk texts at 2-D positions (plane range ±3, like the vectors lab). */
+  corpus?: { text: string; v: [number, number] }[];
+  /** Initial k — how many chunks retrieval returns unconditionally. */
+  k?: number;
+  /** Similarity-threshold floor (LESSON 03 §7): a top score below it means "refuse". */
+  floor?: number;
+  presets?: { label: string; query: [number, number]; k: number }[];
+}
+/** One ranked retrieval result in the Precision & Recall lab's golden-set list. */
+export interface RankedItem {
+  /** Short label for the retrieved chunk (e.g. a source path + snippet). */
+  text: string;
+  /** Whether this chunk is actually relevant to the question (the golden-set truth). */
+  relevant: boolean;
+}
+/** Config for the Precision & Recall lab — a ranked list and a cutoff. */
+export interface PrecisionRecallLabConfig {
+  /** The ranked retrieval list, best-first; array order is the rank. */
+  items?: RankedItem[];
+  /** Initial cutoff k (how far down the ranking counts as "retrieved"). */
+  cutoff?: number;
+  /** Characteristic shapes to load; each may carry its own ranking and cutoff. */
+  presets?: { label: string; items?: RankedItem[]; cutoff?: number }[];
+}
 /** A course-owned visualization: a self-contained HTML file under the module's visuals/. */
 export interface VisualDef {
   /** Filename inside the module's visuals/ dir (a leading "visuals/" is tolerated). */
@@ -49,6 +79,8 @@ export interface ModuleLabConfig {
    */
   vectors?: VectorLabConfig;
   chunking?: ChunkingLabConfig;
+  topk?: TopkLabConfig;
+  "precision-recall"?: PrecisionRecallLabConfig;
   /** Course-generated visuals (self-contained HTML, rendered in sandboxed iframes). */
   visuals?: VisualDef[];
 }

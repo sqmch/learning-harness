@@ -5,8 +5,9 @@ describe, built for learners who understand pictures before notation. Two kinds 
 visualization plug into one shell:
 
 - **Stock labs** — polished interactives shipped with the engine (today: **Vectors &
-  Similarity** and **Chunking & Overlap**). The engine never decides which course they belong
-  to: a module *claims* a stock lab by carrying its config key in `lab.json`.
+  Similarity**, **Chunking & Overlap**, **Top-k Retrieval**, and **Precision & Recall**). The
+  engine never decides which course they belong to: a module *claims* a stock lab by carrying
+  its config key in `lab.json`.
 - **Course-owned visuals** — self-contained HTML files the tutor generates per module
   (`curriculum/NN/visuals/*.html`, declared in `lab.json`), rendered in sandboxed iframes —
   full-screen here, or inline in the lesson via a ```visual fence.
@@ -38,8 +39,13 @@ current module directly.
   identically with the lab closed or deleted.
 - **Never disrupts the session.** The overlay renders *on top* of a still-mounted workspace, so
   the PTY terminal and course selection survive open/close untouched.
-- **Additive & monochrome.** Reuses the study's `:root` tokens (IBM Plex, grayscale, thin
-  lines) — no color, no new dependencies, hand-rolled SVG. Everything lab-specific lives under
+- **Additive & neutral.** Reuses the study's `:root` design tokens, so it inherits the app's
+  two-theme neutral system for free — a paper-and-ink light theme and a near-black dark theme,
+  no accent colour, hierarchy from size/weight/space. It also inherits the three type roles:
+  the lab is an *instrument* surface, so labels are set in IBM Plex Sans and numeric readouts,
+  ids, and axis ticks in IBM Plex Mono (the reading serif is reserved for lesson/journal prose).
+  Hand-rolled SVG, thin lines, no colour of its own. The lab adds no dependencies (the engine
+  bundles the three IBM Plex families once, offline). Everything lab-specific lives under
   `src/lab/`; the only edits outside it are a topbar button + `.lab-launch` style.
 
 ## Anatomy
@@ -158,14 +164,17 @@ in that box.
 |---|---|---|
 | **Vectors & Similarity** ✅ live | `01-embeddings`, `02-vector-store` | dot · length · normalize · cosine · euclidean |
 | **Chunking & Overlap** ✅ live (2026-06-16) | `02-vector-store` | why long text is split; what overlap buys; the duplicated-token cost |
-| Top-k Retrieval (planned) | — | a query pulling its nearest neighbours from a corpus |
-| Precision & Recall (planned) | — | sliding the cutoff; hits / misses / false alarms |
+| **Top-k Retrieval** ✅ live (2026-07-08) | — · built for `03-rag-pipeline` | a draggable query ranking a corpus by cosine; what k buys (recall) vs costs (junk chunks, the floor) |
+| **Precision & Recall** ✅ live (2026-07-08) | — · built for `04-rag-quality` | sliding the cutoff over a ranked golden set; hits / misses / false alarms as precision and recall pull apart |
 
-Planned labs no longer render placeholder cards in the app — a course only ever sees visuals
-it has claimed or shipped. Later candidates: softmax/temperature, tokenization, attention as
-a weighted sum, a 2-D projection (PCA) of *real* embedded points. Add them when a live
-course's module needs them — never speculatively (cf. `docs/ROADMAP.md` — nothing
-lands here until a live course needs it).
+The retrieval pair shipped **ahead of** their claiming modules by explicit decision
+(2026-07-08): instance #1's next two modules are exactly these topics, so the wait-for-a-live-
+module rule was waived. The engine ships the components; the modules still claim them via
+`lab.json` at generation time (the `— · built for` column: no instance claims them on disk
+yet). Later candidates: softmax/temperature, tokenization, attention as a weighted sum, a 2-D
+projection (PCA) of *real* embedded points. Add them when a live course's module needs them —
+never speculatively (cf. `docs/ROADMAP.md`). Planned labs never render placeholder cards: a
+course only ever sees visuals it has claimed or shipped.
 
 ## Lab #1 — what it does
 
