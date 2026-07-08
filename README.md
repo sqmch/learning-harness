@@ -1,33 +1,32 @@
 # coursesmith
 
-A file protocol + local web UI that turns the agentic CLI you already pay for — Claude
-Code, Codex, or similar — into a rigorous personal tutor for **learn-by-building** topics.
-It forges your course one module at a time, calibrated to how the last one actually went.
-
-No API keys, no hosted service, no accounts. Your course is generated into your clone as
-plain markdown and JSON: readable, versioned, yours.
+A tutor protocol and a local web UI for running personal, **learn-by-building** courses
+through an agentic CLI — Claude Code, Codex, or anything else that can follow the
+protocol. The course is generated into your clone, one module at a time, as plain
+markdown and JSON. No API keys, no hosted service, no accounts: the tutor is your own
+CLI agent, and all state lives in your files.
 
 **Status: v0.** Extracted incrementally from a live course; every rule in the protocol
 exists because its absence caused a real failure there. Expect breaking format changes —
 see [docs/ROADMAP.md](docs/ROADMAP.md).
 
-## What it does
+## How it works
 
-- Builds your course from an onboarding interview, then generates it **one module at a
+- The course is drafted from an onboarding interview, then generated **one module at a
   time** — each calibrated to how the previous one actually went.
 - Modules are built, not read: a lesson, a build task, a scaffold that runs but fails its
   checks, and automated checks **you** run. Red → green is the unit of progress.
-- Hints are sealed and escalate (nudge → approach → near-spoiler). The tutor is forbidden
-  from writing your solution code.
-- Every session opens with a recall quiz — spaced repetition with due dates and honest
-  grading.
+- Hints are sealed and escalate (nudge → approach → near-spoiler). The protocol forbids
+  the tutor from writing your solution code.
+- Every session opens with a recall quiz — spaced repetition with due dates, graded by
+  the tutor, with the interval arithmetic done by a script so it can't drift.
 - State survives the chat: progress, quiz bank, and a tutor journal live in files,
-  committed to git at every session close. Any session, any model, picks up where you left
-  off.
+  committed to git at every session close and verified by `npm run doctor`. Any session,
+  any model, picks up where the last one left off.
 
-Honest scope: built for topics where progress is machine-checkable — programming, tools,
+Scope: this is for topics where progress is machine-checkable — programming, tools,
 technical systems. Topics with no runnable output would degrade into quiz-and-judge
-tutoring, and this tool doesn't pretend to be that.
+tutoring, which this tool doesn't attempt.
 
 ## Setup
 
