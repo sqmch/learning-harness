@@ -1,8 +1,9 @@
 // Unit tests for the engine/course path matcher in scripts/update.mjs — the
-// guard that refuses a pull when an instance has edited an engine file.
+// guard that refuses a pull when an instance has edited an engine file — and
+// the install-staleness comparator behind the dependency safety net.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isEngine } from "../update.mjs";
+import { installStale, isEngine } from "../update.mjs";
 
 test("isEngine: engine dirs and top-level engine files are engine", () => {
   for (const p of [
@@ -36,4 +37,15 @@ test("isEngine: course paths are NOT engine (a scaffold's own package.json inclu
   ]) {
     assert.equal(isEngine(p), false, p);
   }
+});
+
+test("installStale: a lockfile newer than the last install owes an npm install", () => {
+  // the 2026-07-09 shape: a hand-completed merge landed a new lockfile at t=200
+  // after the last real install at t=100 — stale, install needed
+  assert.equal(installStale(200, 100), true);
+  // no install has ever run here (fresh clone) — stale
+  assert.equal(installStale(200, null), true);
+  // install ran after the lockfile last changed — in sync
+  assert.equal(installStale(100, 200), false);
+  assert.equal(installStale(100, 100), false);
 });

@@ -11,6 +11,7 @@
 // canvas repo).
 import { execSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
+import fs from "node:fs";
 
 const run = (cmd) =>
   execSync(cmd, { stdio: ["ignore", "pipe", "pipe"] })
@@ -34,6 +35,12 @@ const ENGINE_FILES = new Set([
   "package-lock.json",
 ]);
 export const isEngine = (p) => ENGINE_FILES.has(p) || ENGINE_DIRS.some((d) => p.startsWith(d));
+
+// The tree owes an install when the repo's lockfile is newer than npm's hidden
+// lockfile (node_modules/.package-lock.json — written by every real install).
+// A missing hidden lockfile means no install ever ran here.
+export const installStale = (lockMtimeMs, hiddenLockMtimeMs) =>
+  hiddenLockMtimeMs === null || hiddenLockMtimeMs < lockMtimeMs;
 
 function main() {
   const force = process.argv.includes("--force");
@@ -121,8 +128,29 @@ function main() {
             return base === "package.json" || base === "package-lock.json";
           });
 
-  if (deps.length) {
-    console.log(`[update] dependencies changed (${deps.join(", ")}) — running npm install ...`);
+  // Belt for the strap above: a crashed or hand-completed pull can land a new
+  // lockfile without its install. Instance #1 hit this on 2026-07-09 — the
+  // stranded merge was finished with `git commit --no-edit`, the re-run saw
+  // "already up to date", skipped the dependency step, and the study died on
+  // missing font packages. npm's hidden lockfile records the last actual
+  // install; if ours is newer, install regardless of what this pull brought.
+  const mtime = (p) => {
+    try {
+      return fs.statSync(p).mtimeMs;
+    } catch {
+      return null;
+    }
+  };
+  const lockM = mtime("package-lock.json");
+  const stale =
+    !deps.length && lockM !== null && installStale(lockM, mtime("node_modules/.package-lock.json"));
+
+  if (deps.length || stale) {
+    console.log(
+      deps.length
+        ? `[update] dependencies changed (${deps.join(", ")}) — running npm install ...`
+        : `[update] the lockfile is newer than the last install — running npm install ...`,
+    );
     execSync("npm install", { stdio: "inherit", shell: true });
   }
 
