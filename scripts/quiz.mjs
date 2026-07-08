@@ -30,6 +30,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 const die = (msg) => {
   console.error(msg);
@@ -46,13 +47,13 @@ function todayISO() {
     d.getDate(),
   ).padStart(2, "0")}`;
 }
-function validIso(s) {
+export function validIso(s) {
   if (typeof s !== "string" || !ISO.test(s)) return false;
   const [y, m, d] = s.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d));
   return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
 }
-function addDays(iso, n) {
+export function addDays(iso, n) {
   const [y, m, d] = iso.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d));
   dt.setUTCDate(dt.getUTCDate() + n);
@@ -60,14 +61,14 @@ function addDays(iso, n) {
     dt.getUTCDate(),
   ).padStart(2, "0")}`;
 }
-function daysBetween(fromIso, toIso) {
+export function daysBetween(fromIso, toIso) {
   const [ay, am, ad] = fromIso.split("-").map(Number);
   const [by, bm, bd] = toIso.split("-").map(Number);
   return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86_400_000);
 }
 
 // ---- the interval rule. `prev` is the stored (whole-day) interval. ----
-function nextInterval(prev, result) {
+export function nextInterval(prev, result) {
   switch (result) {
     case "correct":
       return Math.max(2, Math.round((prev ?? 1) * 2.5));
@@ -183,7 +184,7 @@ function serializeItem(item, depth) {
   }
   return `${pad}{\n${lines.join(",\n")}\n${pad}}`;
 }
-function serializeBank(bank) {
+export function serializeBank(bank) {
   const lines = [];
   for (const [k, v] of Object.entries(bank)) {
     if (k === "items" && Array.isArray(v)) {
@@ -339,28 +340,33 @@ const USAGE = `usage: node scripts/quiz.mjs <command> [...args] [--today YYYY-MM
   seed       <module> <id> "<question>"      add a new item (interval 1, due tomorrow)
   reschedule <id> <YYYY-MM-DD>               move due; bookkeeping, never a grade`;
 
-const { flags, pos } = parseArgs(process.argv.slice(2));
-const cmd = pos[0];
-const rest = pos.slice(1);
+function main() {
+  const { flags, pos } = parseArgs(process.argv.slice(2));
+  const cmd = pos[0];
+  const rest = pos.slice(1);
 
-let code = 0;
-switch (cmd) {
-  case "due":
-    code = cmdDue(flags, rest);
-    break;
-  case "grade":
-    code = cmdGrade(flags, rest);
-    break;
-  case "tutored":
-    code = cmdTutored(flags, rest);
-    break;
-  case "seed":
-    code = cmdSeed(flags, rest);
-    break;
-  case "reschedule":
-    code = cmdReschedule(flags, rest);
-    break;
-  default:
-    die(cmd ? `unknown command "${cmd}".\n${USAGE}` : USAGE);
+  let code = 0;
+  switch (cmd) {
+    case "due":
+      code = cmdDue(flags, rest);
+      break;
+    case "grade":
+      code = cmdGrade(flags, rest);
+      break;
+    case "tutored":
+      code = cmdTutored(flags, rest);
+      break;
+    case "seed":
+      code = cmdSeed(flags, rest);
+      break;
+    case "reschedule":
+      code = cmdReschedule(flags, rest);
+      break;
+    default:
+      die(cmd ? `unknown command "${cmd}".\n${USAGE}` : USAGE);
+  }
+  process.exit(code);
 }
-process.exit(code);
+
+// Run only as a CLI; on import (tests) the pure units above are used directly.
+if (import.meta.url === pathToFileURL(process.argv[1]).href) main();

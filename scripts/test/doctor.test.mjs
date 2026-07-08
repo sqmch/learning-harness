@@ -1,0 +1,60 @@
+// Unit tests for the pure helpers in scripts/doctor.mjs: porcelain parsing,
+// the course-state path filter, and journal-heading date extraction.
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { parsePorcelain, isCourseState, newestJournalDate } from "../doctor.mjs";
+
+test("parsePorcelain: modifications, renames, quoted paths, deletes, untracked", () => {
+  const out = [
+    " M tutor/quiz-bank.json",
+    "R  curriculum/00-old/module.json -> curriculum/00-new/module.json", // rename → current path
+    ' M "tutor/a file with spaces.md"', // quoted (special chars) → unwrapped
+    " D tutor/progress.json", // delete still reports the path
+    "?? scratch.txt",
+    "", // blank lines are skipped
+  ].join("\n");
+  assert.deepEqual(parsePorcelain(out), [
+    "tutor/quiz-bank.json",
+    "curriculum/00-new/module.json",
+    "tutor/a file with spaces.md",
+    "tutor/progress.json",
+    "scratch.txt",
+  ]);
+});
+
+test("parsePorcelain: tolerates CRLF and empty input", () => {
+  assert.deepEqual(parsePorcelain(" M a.txt\r\n M b.txt\r\n"), ["a.txt", "b.txt"]);
+  assert.deepEqual(parsePorcelain(""), []);
+  assert.deepEqual(parsePorcelain("\n\n"), []);
+});
+
+test("isCourseState: tutor / curriculum / COURSE.md are state; engine paths are not", () => {
+  assert.equal(isCourseState("tutor/quiz-bank.json"), true);
+  assert.equal(isCourseState("curriculum/00-orientation/module.json"), true);
+  assert.equal(isCourseState("COURSE.md"), true);
+  assert.equal(isCourseState("tutor\\quiz-bank.json"), true); // Windows backslash normalized
+  assert.equal(isCourseState("study/src/App.tsx"), false);
+  assert.equal(isCourseState("README.md"), false);
+  assert.equal(isCourseState("scripts/doctor.mjs"), false);
+});
+
+test("newestJournalDate: newest heading wins; a range heading takes its first date", () => {
+  const journal = [
+    "# Journal",
+    "",
+    "## 2026-06-10 — Session 1 (module 00)",
+    "text",
+    "## 2026-06-15/16 — Session 5 (range heading)",
+    "more",
+    "## 2026-07-03 — Maintenance",
+    "tail",
+  ].join("\n");
+  assert.equal(newestJournalDate(journal), "2026-07-03");
+  // the "…-15/16" range heading contributes 2026-06-15 (its first date), which
+  // beats the earlier 06-10 — the exact shape journal.md carries in instance #1
+  assert.equal(
+    newestJournalDate("## 2026-06-15/16 — Session 5\n\n## 2026-06-10 — Session 1"),
+    "2026-06-15",
+  );
+  assert.equal(newestJournalDate("no dated headings here\n### 2026-01-01 not an h2\n"), null);
+});

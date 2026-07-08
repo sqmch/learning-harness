@@ -26,13 +26,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-
-// ---- argv: --json flag vs the one optional positional path (order-independent).
-//      Mirrors scripts/doctor.mjs. ----
-const argv = process.argv.slice(2);
-const jsonMode = argv.includes("--json");
-const repoArg = argv.find((a) => !a.startsWith("--"));
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 // ---- repo root: explicit arg > HARNESS_REPO > walk up for .git/CLAUDE.md.
 //      Same resolution as doctor.mjs and study/server/index.ts resolveRepoRoot. ----
@@ -47,8 +41,6 @@ function walkUp(start) {
     dir = parent;
   }
 }
-const chosen = repoArg ?? process.env.HARNESS_REPO ?? walkUp(process.cwd()) ?? process.cwd();
-const repoRoot = path.resolve(chosen);
 
 // Schemas live next to this script, under ../docs/schema — the engine's copy, not
 // the target's, so a pulled instance is checked against the version it received.
@@ -90,7 +82,7 @@ function eq(a, b) {
 const joinPath = (base, key) => (base === "" ? String(key) : `${base}.${key}`);
 const isPlainObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 
-function validate(schema, value, at, errors) {
+export function validate(schema, value, at, errors) {
   // --- type ---
   if (schema.type !== undefined) {
     const types = Array.isArray(schema.type) ? schema.type : [schema.type];
@@ -175,12 +167,6 @@ function loadSchema(name) {
     process.exit(2);
   }
 }
-const SCHEMAS = {
-  module: loadSchema("module"),
-  progress: loadSchema("progress"),
-  "quiz-bank": loadSchema("quiz-bank"),
-  lab: loadSchema("lab"),
-};
 
 // ============================================================================
 //  Discover which files to validate under the target repo
@@ -226,7 +212,7 @@ function targets(root) {
 //  Validate each target, collect results (doctor.mjs shape: {id, level, message})
 // ============================================================================
 
-function validateFile(root, rel, schemaName) {
+function validateFile(root, rel, schemaName, schemas) {
   const abs = path.join(root, rel);
   let text;
   try {
@@ -240,7 +226,7 @@ function validateFile(root, rel, schemaName) {
   } catch (err) {
     return { id: rel, level: "fail", message: `not valid JSON: ${err?.message ?? err}`, errors: [] };
   }
-  const errors = validate(SCHEMAS[schemaName], data, "", []);
+  const errors = validate(schemas[schemaName], data, "", []);
   if (errors.length === 0) {
     return { id: rel, level: "ok", message: `valid against ${schemaName}.schema.json`, errors: [] };
   }
@@ -252,44 +238,62 @@ function validateFile(root, rel, schemaName) {
   };
 }
 
-const found = targets(repoRoot);
-const results = found.map((t) => validateFile(repoRoot, t.rel, t.schema));
+function main() {
+  // ---- argv: --json flag vs the one optional positional path (order-independent).
+  //      Mirrors scripts/doctor.mjs. ----
+  const argv = process.argv.slice(2);
+  const jsonMode = argv.includes("--json");
+  const repoArg = argv.find((a) => !a.startsWith("--"));
 
-if (results.length === 0) {
-  // Nothing to validate. Not a validation failure — but say so loudly, never silently.
-  results.push({ id: "validate", level: "warn", message: `no validatable files found under ${repoRoot}`, errors: [] });
-}
+  const chosen = repoArg ?? process.env.HARNESS_REPO ?? walkUp(process.cwd()) ?? process.cwd();
+  const repoRoot = path.resolve(chosen);
 
-// ============================================================================
-//  Render + exit
-// ============================================================================
+  const SCHEMAS = {
+    module: loadSchema("module"),
+    progress: loadSchema("progress"),
+    "quiz-bank": loadSchema("quiz-bank"),
+    lab: loadSchema("lab"),
+  };
 
-const anyFail = results.some((r) => r.level === "fail");
+  const found = targets(repoRoot);
+  const results = found.map((t) => validateFile(repoRoot, t.rel, t.schema, SCHEMAS));
 
-if (jsonMode) {
-  console.log(JSON.stringify(results.map(({ id, level, message }) => ({ id, level, message })), null, 2));
-} else {
-  const glyph = { ok: "✓", warn: "⚠", fail: "✗" };
-  console.log(`validate — ${repoRoot}`);
-  for (const r of results) {
-    console.log(`${glyph[r.level]} ${r.id}`);
-    if (r.level === "fail") {
-      if (r.errors && r.errors.length) {
-        for (const e of r.errors) console.log(`    ${e.path === "" ? "(root)" : e.path}: ${e.message}`);
-      } else {
-        console.log(`    ${r.message}`);
+  if (results.length === 0) {
+    // Nothing to validate. Not a validation failure — but say so loudly, never silently.
+    results.push({ id: "validate", level: "warn", message: `no validatable files found under ${repoRoot}`, errors: [] });
+  }
+
+  // ---- render + exit ----
+  const anyFail = results.some((r) => r.level === "fail");
+
+  if (jsonMode) {
+    console.log(JSON.stringify(results.map(({ id, level, message }) => ({ id, level, message })), null, 2));
+  } else {
+    const glyph = { ok: "✓", warn: "⚠", fail: "✗" };
+    console.log(`validate — ${repoRoot}`);
+    for (const r of results) {
+      console.log(`${glyph[r.level]} ${r.id}`);
+      if (r.level === "fail") {
+        if (r.errors && r.errors.length) {
+          for (const e of r.errors) console.log(`    ${e.path === "" ? "(root)" : e.path}: ${e.message}`);
+        } else {
+          console.log(`    ${r.message}`);
+        }
       }
     }
+    const fails = results.filter((r) => r.level === "fail").length;
+    const oks = results.filter((r) => r.level === "ok").length;
+    console.log(
+      anyFail
+        ? `\n${fails} file(s) failed validation${oks ? `, ${oks} valid` : ""} — fix before continuing.`
+        : results.some((r) => r.level === "warn")
+          ? `\nnothing to validate.`
+          : `\nall ${oks} file(s) valid.`,
+    );
   }
-  const fails = results.filter((r) => r.level === "fail").length;
-  const oks = results.filter((r) => r.level === "ok").length;
-  console.log(
-    anyFail
-      ? `\n${fails} file(s) failed validation${oks ? `, ${oks} valid` : ""} — fix before continuing.`
-      : results.some((r) => r.level === "warn")
-        ? `\nnothing to validate.`
-        : `\nall ${oks} file(s) valid.`,
-  );
+
+  process.exit(anyFail ? 1 : 0);
 }
 
-process.exit(anyFail ? 1 : 0);
+// Run only as a CLI; on import (tests) the pure validate() above is used directly.
+if (import.meta.url === pathToFileURL(process.argv[1]).href) main();

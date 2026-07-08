@@ -31,36 +31,14 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-// ---- argv: --json / --skip-run bare, --reference takes a value, one module positional ----
 const die = (msg) => {
   console.error(msg);
   process.exit(1);
 };
 const USAGE =
   "usage: node scripts/qa-module.mjs <module-dir-or-id> [--reference <dir>] [--json] [--skip-run]";
-
-let jsonMode = false;
-let skipRun = false;
-let referenceDir = null;
-const positionals = [];
-{
-  const argv = process.argv.slice(2);
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
-    if (a === "--json") jsonMode = true;
-    else if (a === "--skip-run") skipRun = true;
-    else if (a === "--reference") {
-      referenceDir = argv[++i];
-      if (referenceDir === undefined || referenceDir.startsWith("--")) die(`--reference requires a directory\n${USAGE}`);
-    } else if (a.startsWith("--reference=")) referenceDir = a.slice("--reference=".length);
-    else if (a.startsWith("--")) die(`unknown flag "${a}"\n${USAGE}`);
-    else positionals.push(a);
-  }
-}
-if (positionals.length === 0) die(USAGE);
-if (positionals.length > 1) die(`too many arguments (one module dir/id expected)\n${USAGE}`);
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const engineRoot = path.resolve(scriptDir, "..");
@@ -131,49 +109,129 @@ function git(moduleDir, args) {
   return { ok: r.status === 0 && !r.error, status: r.status, out: r.stdout ?? "", err: r.stderr ?? "" };
 }
 
-// ============================================================================
-//  resolve the module, decide what layers exist
-// ============================================================================
+// ---- module-level state, assigned by main(); the check functions below close
+//      over it, and the guarded main() is the only writer. On import (tests) the
+//      pure heuristics are used directly and this stays at its defaults. ----
+let jsonMode = false;
+let skipRun = false;
+let referenceDir = null;
+let positionals = [];
 let moduleDir = null;
 let moduleId = null;
-{
-  const resolved = resolveModule(positionals[0]);
-  if (resolved.error) {
-    add("module", "fail", resolved.error);
-    render(); // exits; render tolerates null moduleDir/moduleId
-  }
-  moduleDir = resolved.moduleDir;
-  moduleId = resolved.moduleId;
-}
-const scaffoldDir = path.join(moduleDir, "scaffold");
-const checksDir = path.join(moduleDir, "checks");
-const visualsDir = path.join(moduleDir, "visuals");
-const hasScaffold = fs.existsSync(scaffoldDir);
-const hasChecks = fs.existsSync(checksDir);
-// The volatile layer (scaffold/checks/hints) is generated when the learner
-// starts the module. A stable-only module (spine written, not yet generated)
-// can't be QA'd for handover — say so, don't fail it.
-const volatilePresent = hasScaffold || hasChecks || fs.existsSync(path.join(moduleDir, "hints"));
+let scaffoldDir = null;
+let checksDir = null;
+let visualsDir = null;
+let hasScaffold = false;
+let hasChecks = false;
+let volatilePresent = false;
 
 // ============================================================================
-//  STATIC 1 — required files
+//  PURE HEURISTICS (exported for tests) — no I/O, no shared state
 // ============================================================================
-{
-  const stable = ["LESSON.md", "BRIEF.md", "module.json", "quiz.md"];
-  const volatile = ["hints/hint-1.md", "hints/hint-2.md", "hints/hint-3.md"];
-  const missingStable = stable.filter((f) => !fs.existsSync(path.join(moduleDir, f)));
-  const missingVolatile = volatile.filter((f) => !fs.existsSync(path.join(moduleDir, f)));
-  if (missingStable.length) add("required-files", "fail", `missing required file(s): ${missingStable.join(", ")}`);
-  else if (!volatilePresent)
-    add("required-files", "warn", "stable layer present; volatile layer (scaffold/checks/hints) not generated yet — QA the module after generating it");
-  else if (missingVolatile.length) add("required-files", "fail", `missing required file(s): ${missingVolatile.join(", ")}`);
-  else add("required-files", "ok", "all required files present (LESSON, BRIEF, module.json, quiz.md, hints/hint-1..3)");
+
+// The vitest-output classifier. Distinguishes: tests ran and reported assertion
+// failures (the intended red) vs the process crashed / zero tests found (the
+// harness measured nothing). `run` is { out, raw, timedOut }.
+export function classify(run) {
+  if (run.timedOut) return { verdict: "no-results", detail: "the check run timed out" };
+  const out = run.out ?? "";
+  if (/No test files? found/i.test(out)) return { verdict: "no-results", detail: "no test files found", total: 0 };
+  const m = out.match(/^\s*Tests\s+(.+)$/m); // the per-test summary, not "Test Files"
+  if (!m) return { verdict: "no-results", detail: "no test summary emitted (checks crashed before running)", total: 0 };
+  const tail = m[1];
+  const failed = Number((tail.match(/(\d+)\s+failed/) || [])[1] || 0);
+  const passed = Number((tail.match(/(\d+)\s+passed/) || [])[1] || 0);
+  const total = Number((tail.match(/\((\d+)\)\s*$/) || [])[1] || failed + passed);
+  if (total === 0) return { verdict: "no-results", detail: "zero tests ran", total: 0, failed, passed };
+  if (failed === 0) return { verdict: "all-pass", total, failed, passed };
+  const hasAssertion = /AssertionError/.test(run.raw ?? out);
+  return { verdict: hasAssertion ? "assertion-fail" : "error-fail", total, failed, passed };
+}
+
+// The relative-timing anti-pattern: a comparison between two *measured* durations
+// (the known flake — it breaks once earlier tests warm caches). `files` is an
+// array of { rel, text }. Returns flagged "rel:line  <snippet>" strings. A single
+// measured duration compared to an absolute bound is fine and is not flagged.
+export function detectRelativeTiming(files) {
+  const flagged = [];
+  const CMP = /(<=?|>=?|toBeLessThan(?:OrEqual)?|toBeGreaterThan(?:OrEqual)?)/;
+  const CLOCK = /performance\s*\.\s*now\s*\(|Date\s*\.\s*now\s*\(|process\s*\.\s*hrtime|\.hrtime\b/g;
+  for (const { rel, text } of files) {
+    if (!text) continue;
+    const lines = text.split(/\r?\n/);
+    // pass 1: variables holding a timestamp/duration
+    const timing = new Set();
+    const declRe = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=([^;]*)/;
+    for (const line of lines) {
+      const m = line.match(declRe);
+      if (m && (/performance\s*\.\s*now\s*\(|Date\s*\.\s*now\s*\(|process\s*\.\s*hrtime|\.hrtime\b/.test(m[2]))) timing.add(m[1]);
+    }
+    // pass 2: durations derived by subtracting known timing vars (transitive)
+    for (let pass = 0; pass < 3; pass++) {
+      for (const line of lines) {
+        const m = line.match(declRe);
+        if (!m || timing.has(m[1])) continue;
+        const rhs = m[2];
+        if (!rhs.includes("-")) continue;
+        if ([...timing].some((v) => new RegExp(`\\b${v}\\b`).test(rhs))) timing.add(m[1]);
+      }
+    }
+    // detect comparisons that reference >= 2 timing quantities on one line
+    lines.forEach((line, i) => {
+      if (!CMP.test(line)) return;
+      let count = (line.match(CLOCK) || []).length;
+      for (const v of timing) if (new RegExp(`\\b${v}\\b`).test(line)) count++;
+      if (count >= 2) flagged.push(`${rel}:${i + 1}  ${line.trim().slice(0, 90)}`);
+    });
+  }
+  return flagged;
+}
+
+// hint-2 fenced-code detection (the demotion rule): returns the 1-based line
+// number of each *opening* code fence. Inline `code` is fine; fenced blocks are
+// pasteable and make it a hint-3.
+export function hint2Fences(text) {
+  const fences = [];
+  const lines = text.split(/\r?\n/);
+  let open = false;
+  lines.forEach((line, i) => {
+    if (/^\s*(```|~~~)/.test(line)) {
+      if (!open) fences.push(i + 1);
+      open = !open;
+    }
+  });
+  return fences;
+}
+
+// visuals external-reference linter (the serve-time CSP blocks all network).
+// Returns { external, relative, usesNetworkApi }: external/relative are the
+// referenced URLs (insertion order), usesNetworkApi flags a fetch/XHR/WS/... call.
+export function lintVisualHtml(text) {
+  const URL_ATTRS = [
+    /(?:src|href)\s*=\s*["']([^"']+)["']/gi,
+    /url\(\s*["']?([^"')]+)["']?\s*\)/gi,
+    /@import\s+["']([^"']+)["']/gi,
+    /\bfrom\s+["']([^"']+)["']/gi,
+    /\bimport\s*\(\s*["']([^"']+)["']/gi,
+    /(?:fetch|EventSource|WebSocket)\s*\(\s*["'`]([^"'`]+)["'`]/gi,
+  ];
+  const NET_API = /\b(fetch|XMLHttpRequest|WebSocket|EventSource|importScripts)\b|navigator\s*\.\s*sendBeacon/;
+  const external = new Set();
+  const relative = new Set();
+  for (const re of URL_ATTRS) {
+    for (const m of text.matchAll(re)) {
+      const url = m[1].trim();
+      if (/^(https?:)?\/\//i.test(url) || /^(wss?|ftp):/i.test(url)) external.add(url);
+      else if (/^(data:|#|mailto:|tel:|javascript:|blob:)/i.test(url) || url === "") continue;
+      else relative.add(url);
+    }
+  }
+  return { external: [...external], relative: [...relative], usesNetworkApi: NET_API.test(text) };
 }
 
 // ============================================================================
 //  STATIC 2 — module.json + lab.json against the schemas (reuse validate.mjs)
 // ============================================================================
-schemaCheck();
 function schemaCheck() {
   const present = [
     ["module.json", "module"],
@@ -218,116 +276,8 @@ function schemaCheck() {
 }
 
 // ============================================================================
-//  STATIC 3 — scaffold carries at least one TODO(you) gap
-// ============================================================================
-if (!hasScaffold) {
-  add("scaffold-todo", volatilePresent ? "fail" : "warn", volatilePresent ? "no scaffold/ directory" : "no scaffold/ yet (volatile layer not generated)");
-} else {
-  const files = walkFiles(scaffoldDir);
-  const gapped = files.filter((rel) => (readText(path.join(scaffoldDir, rel)) ?? "").includes("TODO(you)"));
-  if (gapped.length > 0) add("scaffold-todo", "ok", `${gapped.length} scaffold file(s) carry TODO(you) gaps`);
-  else
-    add(
-      "scaffold-todo",
-      "fail",
-      "scaffold has no TODO(you) gaps — a virgin scaffold must leave the conceptually load-bearing parts unbuilt (is this scaffold already completed?)",
-    );
-}
-
-// ============================================================================
-//  STATIC 4 — hint-2 contains no pasteable code fence (the demotion rule)
-// ============================================================================
-{
-  const h2 = path.join(moduleDir, "hints", "hint-2.md");
-  const text = readText(h2);
-  if (text === null) {
-    add("hint2-code", volatilePresent ? "fail" : "warn", "hints/hint-2.md not found");
-  } else {
-    const fences = [];
-    const lines = text.split(/\r?\n/);
-    let open = false;
-    lines.forEach((line, i) => {
-      if (/^\s*(```|~~~)/.test(line)) {
-        if (!open) fences.push(i + 1);
-        open = !open;
-      }
-    });
-    if (fences.length > 0)
-      add(
-        "hint2-code",
-        "fail",
-        `hint-2 has ${fences.length} fenced code block(s) (line ${fences.join(", ")}) — pasteable code makes it a hint-3; demote it (CLAUDE.md hint contract). Inline \`code\` is fine; fenced blocks are not.`,
-      );
-    else add("hint2-code", "ok", "hint-2 is prose (no pasteable code fences)");
-  }
-}
-
-// ============================================================================
-//  STATIC 5 — checks contain no relative-timing anti-pattern
-//  (a comparison between two measured durations — the known flake)
-// ============================================================================
-if (!hasChecks) {
-  add("timing", volatilePresent ? "fail" : "warn", volatilePresent ? "no checks/ directory" : "no checks/ yet (volatile layer not generated)");
-} else {
-  const flagged = [];
-  const CMP = /(<=?|>=?|toBeLessThan(?:OrEqual)?|toBeGreaterThan(?:OrEqual)?)/;
-  const CLOCK = /performance\s*\.\s*now\s*\(|Date\s*\.\s*now\s*\(|process\s*\.\s*hrtime|\.hrtime\b/g;
-  for (const rel of walkFiles(checksDir)) {
-    if (!/\.(m?[jt]sx?)$/.test(rel)) continue;
-    const text = readText(path.join(checksDir, rel));
-    if (!text) continue;
-    const lines = text.split(/\r?\n/);
-    // pass 1: variables holding a timestamp/duration
-    const timing = new Set();
-    const declRe = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=([^;]*)/;
-    for (const line of lines) {
-      const m = line.match(declRe);
-      if (m && (/performance\s*\.\s*now\s*\(|Date\s*\.\s*now\s*\(|process\s*\.\s*hrtime|\.hrtime\b/.test(m[2]))) timing.add(m[1]);
-    }
-    // pass 2: durations derived by subtracting known timing vars (transitive)
-    for (let pass = 0; pass < 3; pass++) {
-      for (const line of lines) {
-        const m = line.match(declRe);
-        if (!m || timing.has(m[1])) continue;
-        const rhs = m[2];
-        if (!rhs.includes("-")) continue;
-        if ([...timing].some((v) => new RegExp(`\\b${v}\\b`).test(rhs))) timing.add(m[1]);
-      }
-    }
-    // detect comparisons that reference >= 2 timing quantities on one line
-    lines.forEach((line, i) => {
-      if (!CMP.test(line)) return;
-      let count = (line.match(CLOCK) || []).length;
-      for (const v of timing) if (new RegExp(`\\b${v}\\b`).test(line)) count++;
-      if (count >= 2) flagged.push(`${rel}:${i + 1}  ${line.trim().slice(0, 90)}`);
-    });
-  }
-  if (flagged.length > 0)
-    add(
-      "timing",
-      "fail",
-      `relative-timing assertion(s) — a duration compared to another measured duration flakes once earlier tests warm caches (CLAUDE.md check-design). Use a warm-up + absolute bound instead:\n    ${flagged.join("\n    ")}`,
-    );
-  else add("timing", "ok", "no relative-timing assertions in checks/");
-}
-
-// ============================================================================
-//  STATIC 6 — quiz.md has 4–8 questions
-// ============================================================================
-{
-  const text = readText(path.join(moduleDir, "quiz.md"));
-  if (text === null) add("quiz-count", "fail", "quiz.md not found");
-  else {
-    const n = (text.match(/^\s*\d+\.\s+\S/gm) || []).length;
-    if (n >= 4 && n <= 8) add("quiz-count", "ok", `quiz.md has ${n} questions (4–8 expected)`);
-    else add("quiz-count", "fail", `quiz.md has ${n} numbered question(s); the contract is 4–8`);
-  }
-}
-
-// ============================================================================
 //  STATIC 7 — lab.json: stock claims exist, visuals files exist
 // ============================================================================
-labCheck();
 function labCheck() {
   const labPath = path.join(moduleDir, "lab.json");
   if (!fs.existsSync(labPath)) {
@@ -388,73 +338,8 @@ function labCheck() {
 }
 
 // ============================================================================
-//  STATIC 8 — visuals HTML is self-contained (the serve-time CSP blocks network)
-// ============================================================================
-{
-  const htmls = fs.existsSync(visualsDir) ? walkFiles(visualsDir).filter((f) => /\.html?$/i.test(f)) : [];
-  if (htmls.length === 0) add("visuals-csp", "ok", "no visuals/*.html to lint");
-  else {
-    const fails = [];
-    const warns = [];
-    const URL_ATTRS = [
-      /(?:src|href)\s*=\s*["']([^"']+)["']/gi,
-      /url\(\s*["']?([^"')]+)["']?\s*\)/gi,
-      /@import\s+["']([^"']+)["']/gi,
-      /\bfrom\s+["']([^"']+)["']/gi,
-      /\bimport\s*\(\s*["']([^"']+)["']/gi,
-      /(?:fetch|EventSource|WebSocket)\s*\(\s*["'`]([^"'`]+)["'`]/gi,
-    ];
-    const NET_API = /\b(fetch|XMLHttpRequest|WebSocket|EventSource|importScripts)\b|navigator\s*\.\s*sendBeacon/;
-    for (const rel of htmls) {
-      const text = readText(path.join(visualsDir, rel)) ?? "";
-      const external = new Set();
-      const relative = new Set();
-      for (const re of URL_ATTRS) {
-        for (const m of text.matchAll(re)) {
-          const url = m[1].trim();
-          if (/^(https?:)?\/\//i.test(url) || /^(wss?|ftp):/i.test(url)) external.add(url);
-          else if (/^(data:|#|mailto:|tel:|javascript:|blob:)/i.test(url) || url === "") continue;
-          else relative.add(url);
-        }
-      }
-      if (external.size) fails.push(`${rel}: external reference(s) ${[...external].slice(0, 5).join(", ")}`);
-      if (relative.size) warns.push(`${rel}: relative reference(s) ${[...relative].slice(0, 5).join(", ")} — must be inlined (nothing external is served)`);
-      if (NET_API.test(text)) warns.push(`${rel}: uses a network API (fetch/XHR/WebSocket/…) — the CSP blocks all network, so it fails silently`);
-    }
-    if (fails.length) add("visuals-csp", "fail", `${fails.join("; ")}${warns.length ? "; " + warns.join("; ") : ""} — visuals must inline all assets (served under a network-blocking CSP)`);
-    else if (warns.length) add("visuals-csp", "warn", warns.join("; "));
-    else add("visuals-csp", "ok", `${htmls.length} visual(s) are self-contained (no external references)`);
-  }
-}
-
-// ============================================================================
-//  STATIC 9 — scaffold has no git-tracked node_modules
-//  (installed-but-ignored is fine; committed bloats every clone)
-// ============================================================================
-if (!hasScaffold) {
-  add("scaffold-hygiene", "ok", "no scaffold/ — nothing to check for committed node_modules");
-} else {
-  const ls = git(moduleDir, ["ls-files", "--", "scaffold"]);
-  if (!ls.ok) {
-    add("scaffold-hygiene", "warn", "module is not under a git working tree — cannot check for committed node_modules (run against the in-repo module)");
-  } else {
-    const tracked = ls.out.split(/\r?\n/).filter((l) => /(^|\/)node_modules\//.test(l));
-    if (tracked.length) {
-      add("scaffold-hygiene", "fail", `${tracked.length} node_modules file(s) are git-tracked under scaffold/ — gitignore node_modules and untrack it (it bloats every clone)`);
-    } else if (fs.existsSync(path.join(scaffoldDir, "node_modules"))) {
-      const ci = git(moduleDir, ["check-ignore", "-q", "scaffold/node_modules"]);
-      if (ci.status === 0) add("scaffold-hygiene", "ok", "scaffold/node_modules present but gitignored (not tracked) — fine");
-      else add("scaffold-hygiene", "warn", "scaffold/node_modules present on disk and NOT gitignored — a stray `git add` would commit 100s of MB; add it to .gitignore");
-    } else {
-      add("scaffold-hygiene", "ok", "no node_modules under scaffold/");
-    }
-  }
-}
-
-// ============================================================================
 //  DYNAMIC — run the checks in throwaway copies
 // ============================================================================
-runDynamic();
 function runDynamic() {
   // is there anything runnable?
   if (!hasScaffold || !hasChecks) {
@@ -544,24 +429,6 @@ function runChecks(overlayDir) {
   }
 }
 
-// Distinguish: tests ran and reported assertion failures (the intended red) vs
-// the process crashed / zero tests found (the harness measured nothing).
-function classify(run) {
-  if (run.timedOut) return { verdict: "no-results", detail: "the check run timed out" };
-  const out = run.out ?? "";
-  if (/No test files? found/i.test(out)) return { verdict: "no-results", detail: "no test files found", total: 0 };
-  const m = out.match(/^\s*Tests\s+(.+)$/m); // the per-test summary, not "Test Files"
-  if (!m) return { verdict: "no-results", detail: "no test summary emitted (checks crashed before running)", total: 0 };
-  const tail = m[1];
-  const failed = Number((tail.match(/(\d+)\s+failed/) || [])[1] || 0);
-  const passed = Number((tail.match(/(\d+)\s+passed/) || [])[1] || 0);
-  const total = Number((tail.match(/\((\d+)\)\s*$/) || [])[1] || failed + passed);
-  if (total === 0) return { verdict: "no-results", detail: "zero tests ran", total: 0, failed, passed };
-  if (failed === 0) return { verdict: "all-pass", total, failed, passed };
-  const hasAssertion = /AssertionError/.test(run.raw ?? out);
-  return { verdict: hasAssertion ? "assertion-fail" : "error-fail", total, failed, passed };
-}
-
 function safeJson(text) {
   try {
     return JSON.parse(text);
@@ -591,7 +458,6 @@ function safeRemove(dir) {
 // ============================================================================
 //  render + exit
 // ============================================================================
-render();
 function render() {
   const anyFail = results.some((r) => r.level === "fail");
   if (jsonMode) {
@@ -612,3 +478,175 @@ function render() {
   }
   process.exit(anyFail ? 1 : 0);
 }
+
+// ============================================================================
+//  main — argv, module resolution, the checks in order, render
+// ============================================================================
+function main() {
+  // ---- argv: --json / --skip-run bare, --reference takes a value, one module positional ----
+  {
+    const argv = process.argv.slice(2);
+    for (let i = 0; i < argv.length; i++) {
+      const a = argv[i];
+      if (a === "--json") jsonMode = true;
+      else if (a === "--skip-run") skipRun = true;
+      else if (a === "--reference") {
+        referenceDir = argv[++i];
+        if (referenceDir === undefined || referenceDir.startsWith("--")) die(`--reference requires a directory\n${USAGE}`);
+      } else if (a.startsWith("--reference=")) referenceDir = a.slice("--reference=".length);
+      else if (a.startsWith("--")) die(`unknown flag "${a}"\n${USAGE}`);
+      else positionals.push(a);
+    }
+  }
+  if (positionals.length === 0) die(USAGE);
+  if (positionals.length > 1) die(`too many arguments (one module dir/id expected)\n${USAGE}`);
+
+  // resolve the module, decide what layers exist
+  {
+    const resolved = resolveModule(positionals[0]);
+    if (resolved.error) {
+      add("module", "fail", resolved.error);
+      render(); // exits; render tolerates null moduleDir/moduleId
+    }
+    moduleDir = resolved.moduleDir;
+    moduleId = resolved.moduleId;
+  }
+  scaffoldDir = path.join(moduleDir, "scaffold");
+  checksDir = path.join(moduleDir, "checks");
+  visualsDir = path.join(moduleDir, "visuals");
+  hasScaffold = fs.existsSync(scaffoldDir);
+  hasChecks = fs.existsSync(checksDir);
+  // The volatile layer (scaffold/checks/hints) is generated when the learner
+  // starts the module. A stable-only module (spine written, not yet generated)
+  // can't be QA'd for handover — say so, don't fail it.
+  volatilePresent = hasScaffold || hasChecks || fs.existsSync(path.join(moduleDir, "hints"));
+
+  // ---- STATIC 1 — required files ----
+  {
+    const stable = ["LESSON.md", "BRIEF.md", "module.json", "quiz.md"];
+    const volatile = ["hints/hint-1.md", "hints/hint-2.md", "hints/hint-3.md"];
+    const missingStable = stable.filter((f) => !fs.existsSync(path.join(moduleDir, f)));
+    const missingVolatile = volatile.filter((f) => !fs.existsSync(path.join(moduleDir, f)));
+    if (missingStable.length) add("required-files", "fail", `missing required file(s): ${missingStable.join(", ")}`);
+    else if (!volatilePresent)
+      add("required-files", "warn", "stable layer present; volatile layer (scaffold/checks/hints) not generated yet — QA the module after generating it");
+    else if (missingVolatile.length) add("required-files", "fail", `missing required file(s): ${missingVolatile.join(", ")}`);
+    else add("required-files", "ok", "all required files present (LESSON, BRIEF, module.json, quiz.md, hints/hint-1..3)");
+  }
+
+  // ---- STATIC 2 — module.json + lab.json against the schemas ----
+  schemaCheck();
+
+  // ---- STATIC 3 — scaffold carries at least one TODO(you) gap ----
+  if (!hasScaffold) {
+    add("scaffold-todo", volatilePresent ? "fail" : "warn", volatilePresent ? "no scaffold/ directory" : "no scaffold/ yet (volatile layer not generated)");
+  } else {
+    const files = walkFiles(scaffoldDir);
+    const gapped = files.filter((rel) => (readText(path.join(scaffoldDir, rel)) ?? "").includes("TODO(you)"));
+    if (gapped.length > 0) add("scaffold-todo", "ok", `${gapped.length} scaffold file(s) carry TODO(you) gaps`);
+    else
+      add(
+        "scaffold-todo",
+        "fail",
+        "scaffold has no TODO(you) gaps — a virgin scaffold must leave the conceptually load-bearing parts unbuilt (is this scaffold already completed?)",
+      );
+  }
+
+  // ---- STATIC 4 — hint-2 contains no pasteable code fence (the demotion rule) ----
+  {
+    const h2 = path.join(moduleDir, "hints", "hint-2.md");
+    const text = readText(h2);
+    if (text === null) {
+      add("hint2-code", volatilePresent ? "fail" : "warn", "hints/hint-2.md not found");
+    } else {
+      const fences = hint2Fences(text);
+      if (fences.length > 0)
+        add(
+          "hint2-code",
+          "fail",
+          `hint-2 has ${fences.length} fenced code block(s) (line ${fences.join(", ")}) — pasteable code makes it a hint-3; demote it (CLAUDE.md hint contract). Inline \`code\` is fine; fenced blocks are not.`,
+        );
+      else add("hint2-code", "ok", "hint-2 is prose (no pasteable code fences)");
+    }
+  }
+
+  // ---- STATIC 5 — checks contain no relative-timing anti-pattern ----
+  if (!hasChecks) {
+    add("timing", volatilePresent ? "fail" : "warn", volatilePresent ? "no checks/ directory" : "no checks/ yet (volatile layer not generated)");
+  } else {
+    const files = walkFiles(checksDir)
+      .filter((rel) => /\.(m?[jt]sx?)$/.test(rel))
+      .map((rel) => ({ rel, text: readText(path.join(checksDir, rel)) }));
+    const flagged = detectRelativeTiming(files);
+    if (flagged.length > 0)
+      add(
+        "timing",
+        "fail",
+        `relative-timing assertion(s) — a duration compared to another measured duration flakes once earlier tests warm caches (CLAUDE.md check-design). Use a warm-up + absolute bound instead:\n    ${flagged.join("\n    ")}`,
+      );
+    else add("timing", "ok", "no relative-timing assertions in checks/");
+  }
+
+  // ---- STATIC 6 — quiz.md has 4–8 questions ----
+  {
+    const text = readText(path.join(moduleDir, "quiz.md"));
+    if (text === null) add("quiz-count", "fail", "quiz.md not found");
+    else {
+      const n = (text.match(/^\s*\d+\.\s+\S/gm) || []).length;
+      if (n >= 4 && n <= 8) add("quiz-count", "ok", `quiz.md has ${n} questions (4–8 expected)`);
+      else add("quiz-count", "fail", `quiz.md has ${n} numbered question(s); the contract is 4–8`);
+    }
+  }
+
+  // ---- STATIC 7 — lab.json: stock claims exist, visuals files exist ----
+  labCheck();
+
+  // ---- STATIC 8 — visuals HTML is self-contained (the serve-time CSP blocks network) ----
+  {
+    const htmls = fs.existsSync(visualsDir) ? walkFiles(visualsDir).filter((f) => /\.html?$/i.test(f)) : [];
+    if (htmls.length === 0) add("visuals-csp", "ok", "no visuals/*.html to lint");
+    else {
+      const fails = [];
+      const warns = [];
+      for (const rel of htmls) {
+        const text = readText(path.join(visualsDir, rel)) ?? "";
+        const { external, relative, usesNetworkApi } = lintVisualHtml(text);
+        if (external.length) fails.push(`${rel}: external reference(s) ${external.slice(0, 5).join(", ")}`);
+        if (relative.length) warns.push(`${rel}: relative reference(s) ${relative.slice(0, 5).join(", ")} — must be inlined (nothing external is served)`);
+        if (usesNetworkApi) warns.push(`${rel}: uses a network API (fetch/XHR/WebSocket/…) — the CSP blocks all network, so it fails silently`);
+      }
+      if (fails.length) add("visuals-csp", "fail", `${fails.join("; ")}${warns.length ? "; " + warns.join("; ") : ""} — visuals must inline all assets (served under a network-blocking CSP)`);
+      else if (warns.length) add("visuals-csp", "warn", warns.join("; "));
+      else add("visuals-csp", "ok", `${htmls.length} visual(s) are self-contained (no external references)`);
+    }
+  }
+
+  // ---- STATIC 9 — scaffold has no git-tracked node_modules ----
+  if (!hasScaffold) {
+    add("scaffold-hygiene", "ok", "no scaffold/ — nothing to check for committed node_modules");
+  } else {
+    const ls = git(moduleDir, ["ls-files", "--", "scaffold"]);
+    if (!ls.ok) {
+      add("scaffold-hygiene", "warn", "module is not under a git working tree — cannot check for committed node_modules (run against the in-repo module)");
+    } else {
+      const tracked = ls.out.split(/\r?\n/).filter((l) => /(^|\/)node_modules\//.test(l));
+      if (tracked.length) {
+        add("scaffold-hygiene", "fail", `${tracked.length} node_modules file(s) are git-tracked under scaffold/ — gitignore node_modules and untrack it (it bloats every clone)`);
+      } else if (fs.existsSync(path.join(scaffoldDir, "node_modules"))) {
+        const ci = git(moduleDir, ["check-ignore", "-q", "scaffold/node_modules"]);
+        if (ci.status === 0) add("scaffold-hygiene", "ok", "scaffold/node_modules present but gitignored (not tracked) — fine");
+        else add("scaffold-hygiene", "warn", "scaffold/node_modules present on disk and NOT gitignored — a stray `git add` would commit 100s of MB; add it to .gitignore");
+      } else {
+        add("scaffold-hygiene", "ok", "no node_modules under scaffold/");
+      }
+    }
+  }
+
+  // ---- DYNAMIC — run the checks in throwaway copies ----
+  runDynamic();
+
+  render();
+}
+
+// Run only as a CLI; on import (tests) the pure heuristics above are used directly.
+if (import.meta.url === pathToFileURL(process.argv[1]).href) main();

@@ -10,6 +10,7 @@
     "dev": "npm run dev --workspace study",
     "start": "npm run start --workspace study",
     "typecheck": "npm run typecheck --workspace study",
+    "test": "node --test \"scripts/test/**/*.test.mjs\"",
     "doctor": "node scripts/doctor.mjs",
     "validate": "node scripts/validate.mjs",
     "qa": "node scripts/qa-module.mjs",
