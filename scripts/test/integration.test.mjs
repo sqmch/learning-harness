@@ -36,7 +36,16 @@ test("doctor CLI: clean instance exits 0; graded-but-unjournaled exits 1", () =>
   const clean = mkInstance({
     "tutor/progress.json": { learner, currentModule: null, modules: {} },
     "tutor/quiz-bank.json": {
-      items: [{ id: "x", module: "m", question: "q", interval: 1, due: "2026-06-20", history: [{ date: "2026-06-01", result: "correct" }] }],
+      items: [
+        {
+          id: "x",
+          module: "m",
+          question: "q",
+          interval: 1,
+          due: "2026-06-20",
+          history: [{ date: "2026-06-01", result: "correct" }],
+        },
+      ],
     },
     "tutor/journal.md": "## 2026-06-02 — Session 1\ncovered the basics\n",
   });
@@ -49,7 +58,16 @@ test("doctor CLI: clean instance exits 0; graded-but-unjournaled exits 1", () =>
   const desynced = mkInstance({
     "tutor/progress.json": { learner, currentModule: null, modules: {} },
     "tutor/quiz-bank.json": {
-      items: [{ id: "x", module: "m", question: "q", interval: 2, due: "2026-07-10", history: [{ date: "2026-07-05", result: "correct" }] }],
+      items: [
+        {
+          id: "x",
+          module: "m",
+          question: "q",
+          interval: 2,
+          due: "2026-07-10",
+          history: [{ date: "2026-07-05", result: "correct" }],
+        },
+      ],
     },
     "tutor/journal.md": "## 2026-07-03 — Session 4\nlast real session\n",
   });
@@ -60,8 +78,14 @@ test("doctor CLI: clean instance exits 0; graded-but-unjournaled exits 1", () =>
 
 test("validate CLI: a valid module passes; a corrupted one exits 1", () => {
   const validModule = {
-    id: "00-demo", title: "Demo", phase: 0, prerequisites: [], runtime: "node",
-    estimatedHours: 1, provenance: "core", volatileLayer: "generated-at-start",
+    id: "00-demo",
+    title: "Demo",
+    phase: 0,
+    prerequisites: [],
+    runtime: "node",
+    estimatedHours: 1,
+    provenance: "core",
+    volatileLayer: "generated-at-start",
   };
   const good = mkInstance({ "curriculum/00-demo/module.json": validModule });
   const gr = runCli("validate.mjs", [good]);
@@ -79,7 +103,16 @@ test("validate CLI: a valid module passes; a corrupted one exits 1", () => {
 test("quiz CLI: grade applies the interval rule deterministically with --today", () => {
   const repo = mkInstance({
     "tutor/quiz-bank.json": {
-      items: [{ id: "00-x", module: "00-demo", question: "q?", interval: 1, due: "2026-07-08", history: [] }],
+      items: [
+        {
+          id: "00-x",
+          module: "00-demo",
+          question: "q?",
+          interval: 1,
+          due: "2026-07-08",
+          history: [],
+        },
+      ],
     },
   });
   const r = runCli("quiz.mjs", ["grade", "00-x", "correct", "--today", "2026-07-08", repo]);

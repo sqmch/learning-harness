@@ -6,8 +6,10 @@ import assert from "node:assert/strict";
 import { classify, detectRelativeTiming, hint2Fences, lintVisualHtml } from "../qa-module.mjs";
 
 // vitest prints a per-test "Tests …" summary distinct from "Test Files …".
-const passOut = " ✓ checks/store.test.ts (10)\n\n Test Files  1 passed (1)\n      Tests  10 passed (10)\n";
-const failOut = " ❯ checks/store.test.ts (10)\n\n Test Files  1 failed (1)\n      Tests  3 failed | 7 passed (10)\n";
+const passOut =
+  " ✓ checks/store.test.ts (10)\n\n Test Files  1 passed (1)\n      Tests  10 passed (10)\n";
+const failOut =
+  " ❯ checks/store.test.ts (10)\n\n Test Files  1 failed (1)\n      Tests  3 failed | 7 passed (10)\n";
 const assertionRaw = `${failOut}\nAssertionError: expected 2 to be 3\n`;
 
 test("classify: all-pass reads the totals off the Tests line, not Test Files", () => {
@@ -28,8 +30,14 @@ test("classify: assertion-fail vs error-fail turns on AssertionError in raw outp
 });
 
 test("classify: no test files, no summary, zero tests, and timeout are all no-results", () => {
-  assert.equal(classify({ out: "No test files found, exiting with code 1", raw: "" }).verdict, "no-results");
-  assert.equal(classify({ out: "noise, but no summary line was ever printed", raw: "" }).verdict, "no-results");
+  assert.equal(
+    classify({ out: "No test files found, exiting with code 1", raw: "" }).verdict,
+    "no-results",
+  );
+  assert.equal(
+    classify({ out: "noise, but no summary line was ever printed", raw: "" }).verdict,
+    "no-results",
+  );
   assert.equal(classify({ out: "      Tests  0 passed (0)\n", raw: "" }).verdict, "no-results");
   assert.equal(classify({ timedOut: true }).verdict, "no-results");
 });
@@ -56,12 +64,20 @@ test("detectRelativeTiming: flags measured-vs-measured, ignores absolute bounds 
 
   // a comparison with no clocks at all is not a timing assertion
   assert.equal(
-    detectRelativeTiming([{ rel: "plain.test.ts", text: "expect(results.length).toBeGreaterThan(2);" }]).length,
+    detectRelativeTiming([
+      { rel: "plain.test.ts", text: "expect(results.length).toBeGreaterThan(2);" },
+    ]).length,
     0,
   );
 
   // empty / missing text is skipped, not crashed
-  assert.equal(detectRelativeTiming([{ rel: "empty.test.ts", text: "" }, { rel: "n.test.ts", text: null }]).length, 0);
+  assert.equal(
+    detectRelativeTiming([
+      { rel: "empty.test.ts", text: "" },
+      { rel: "n.test.ts", text: null },
+    ]).length,
+    0,
+  );
 });
 
 test("hint2Fences: reports opening fence lines; prose and inline code are clean", () => {
@@ -93,7 +109,9 @@ test("lintVisualHtml: external fails, relative warns, data/inline/anchors pass, 
   assert.equal(inline.usesNetworkApi, false);
 
   // protocol-relative and ws:// count as external
-  const proto = lintVisualHtml('<script src="//evil.example.com/x.js"></script><script>new WebSocket("wss://x/y")</script>');
+  const proto = lintVisualHtml(
+    '<script src="//evil.example.com/x.js"></script><script>new WebSocket("wss://x/y")</script>',
+  );
   assert.equal(proto.external.includes("//evil.example.com/x.js"), true);
   assert.equal(proto.external.includes("wss://x/y"), true);
   assert.equal(proto.usesNetworkApi, true);

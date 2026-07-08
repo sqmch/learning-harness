@@ -17,9 +17,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedIdRaw] = useState<string | null>(null);
   const [labOpen, setLabOpen] = useState(false);
-  const [labTarget, setLabTarget] = useState<{ entryKey: string; moduleId: string } | null>(
-    null,
-  );
+  const [labTarget, setLabTarget] = useState<{ entryKey: string; moduleId: string } | null>(null);
 
   // record overlay: the tutor's persistent state (quiz bank, journal, progress).
   // The topbar chip and this overlay share one derivation of "due today".
@@ -209,7 +207,6 @@ export default function App() {
       </div>
     );
   }
-
 
   return (
     <div className="shell">

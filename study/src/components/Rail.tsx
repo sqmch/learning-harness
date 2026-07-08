@@ -52,7 +52,10 @@ export function Rail(props: {
                     <span className="module-title">
                       {m.title}
                       {moduleHasVisuals(m) && (
-                        <span className="module-viz" title="has a visualization — see the lesson's ◇ chips">
+                        <span
+                          className="module-viz"
+                          title="has a visualization — see the lesson's ◇ chips"
+                        >
                           ◇
                         </span>
                       )}
@@ -70,7 +73,9 @@ export function Rail(props: {
         </section>
       ))}
       <div className="rail-foot">
-        Phase 2+ modules appear here<br />as their content is built.
+        Phase 2+ modules appear here
+        <br />
+        as their content is built.
       </div>
     </nav>
   );

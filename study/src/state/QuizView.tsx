@@ -103,9 +103,7 @@ export function QuizView(props: { bank: QuizBank | null; state: FileState; today
     <div className="state-scroll">
       <div className="q-head">
         <h2 className="state-h2">
-          {due.length > 0
-            ? `${due.length} due as of ${today}`
-            : `Nothing due as of ${today}`}
+          {due.length > 0 ? `${due.length} due as of ${today}` : `Nothing due as of ${today}`}
         </h2>
         <p className="state-lede">
           {due.length > 0

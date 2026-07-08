@@ -1,0 +1,20 @@
+# Generated or vendored — never reformat.
+node_modules
+dist
+package-lock.json
+
+# Golden test fixtures: their exact byte layout is asserted (quiz.test.mjs round-
+# trips quiz-bank.sample.json against the CLI's own serializer, which formats JSON
+# differently from Prettier). Formatting them would break the tests.
+scripts/test/fixtures/
+
+# Course paths belong to the instance, not the engine. Instances inherit this
+# ignore file through `npm run update`, so the engine must never reach in and
+# reformat a learner's course prose or JSON state.
+COURSE.md
+curriculum/
+tutor/
+
+# docs/schema/*.json is deliberately NOT ignored: those hand-authored schemas
+# already match Prettier at printWidth 100, so keeping them in scope guards them
+# against drift at zero churn.

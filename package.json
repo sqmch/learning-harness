@@ -10,11 +10,21 @@
     "dev": "npm run dev --workspace study",
     "start": "npm run start --workspace study",
     "typecheck": "npm run typecheck --workspace study",
-    "test": "node --test \"scripts/test/**/*.test.mjs\"",
+    "lint": "eslint . --max-warnings 0",
+    "format": "prettier --write \"**/*.{js,cjs,mjs,ts,tsx,json,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{js,cjs,mjs,ts,tsx,json,yml,yaml}\"",
+    "test": "node --test \"scripts/test/**/*.test.mjs\" && npm run test --workspace study",
     "doctor": "node scripts/doctor.mjs",
     "validate": "node scripts/validate.mjs",
     "qa": "node scripts/qa-module.mjs",
     "quiz": "node scripts/quiz.mjs",
     "update": "node scripts/update.mjs"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "prettier": "^3.9.4",
+    "typescript-eslint": "^8.63.0"
   }
 }

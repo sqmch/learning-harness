@@ -9,10 +9,18 @@ import { fileURLToPath } from "node:url";
 import { validate } from "../validate.mjs";
 
 const errs = (schema, value) => validate(schema, value, "", []);
-const ok = (schema, value) => assert.equal(errs(schema, value).length, 0, JSON.stringify(errs(schema, value)));
-const bad = (schema, value) => assert.ok(errs(schema, value).length > 0, "expected at least one error");
+const ok = (schema, value) =>
+  assert.equal(errs(schema, value).length, 0, JSON.stringify(errs(schema, value)));
+const bad = (schema, value) =>
+  assert.ok(errs(schema, value).length > 0, "expected at least one error");
 
-const schemaDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "docs", "schema");
+const schemaDir = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+  "docs",
+  "schema",
+);
 const load = (n) => JSON.parse(fs.readFileSync(path.join(schemaDir, `${n}.schema.json`), "utf8"));
 
 test("type: unions and integer vs number", () => {
@@ -82,10 +90,23 @@ test("the four shipped schemas accept real / realistic fixtures", () => {
 test("the four shipped schemas reject corrupted copies", () => {
   // module: missing required volatileLayer; bad id pattern; bad enum
   bad(load("module"), {
-    id: "02-x", title: "T", phase: 1, prerequisites: [], runtime: "node", estimatedHours: 2, provenance: "core",
+    id: "02-x",
+    title: "T",
+    phase: 1,
+    prerequisites: [],
+    runtime: "node",
+    estimatedHours: 2,
+    provenance: "core",
   });
   bad(load("module"), {
-    id: "BAD ID", title: "T", phase: 1, prerequisites: [], runtime: "node", estimatedHours: 2, provenance: "core", volatileLayer: "generated-at-start",
+    id: "BAD ID",
+    title: "T",
+    phase: 1,
+    prerequisites: [],
+    runtime: "node",
+    estimatedHours: 2,
+    provenance: "core",
+    volatileLayer: "generated-at-start",
   });
   // progress: status outside the canonical vocabulary
   bad(load("progress"), {

@@ -47,7 +47,10 @@ export function StateOverlay(props: {
   const bank = useMemo(() => (quiz.raw ? parseQuizBank(quiz.raw) : null), [quiz.raw]);
   const prog = useMemo(() => (progress.raw ? parseProgress(progress.raw) : null), [progress.raw]);
   const due = useMemo(() => dueItems(bank, props.today), [bank, props.today]);
-  const entryCount = useMemo(() => (journal.raw ? parseJournal(journal.raw).length : 0), [journal.raw]);
+  const entryCount = useMemo(
+    () => (journal.raw ? parseJournal(journal.raw).length : 0),
+    [journal.raw],
+  );
 
   const done = props.modules.filter((m) => m.status === "complete").length;
 

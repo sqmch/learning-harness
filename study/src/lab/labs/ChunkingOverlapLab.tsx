@@ -66,10 +66,7 @@ export function ChunkingOverlapLab(props: LabProps) {
   const safeSize = Math.max(1, Math.min(size, n));
   const safeOverlap = Math.max(0, Math.min(overlap, safeSize - 1));
   const stride = Math.max(1, safeSize - safeOverlap);
-  const chunks = useMemo(
-    () => chunkRanges(n, safeSize, safeOverlap),
-    [n, safeSize, safeOverlap],
-  );
+  const chunks = useMemo(() => chunkRanges(n, safeSize, safeOverlap), [n, safeSize, safeOverlap]);
 
   const totalCovered = chunks.reduce((s, c) => s + (c.end - c.start), 0);
   const duplicated = totalCovered - n;
@@ -110,8 +107,8 @@ export function ChunkingOverlapLab(props: LabProps) {
       <div className="clab-stage">
         <p className="clab-intro">
           A document is sliced into fixed-size <b>chunks</b> that <b>overlap</b> by a few tokens;
-          each chunk is embedded as one vector. Move the knobs and watch the boundaries shift —
-          and whether a fact lands inside a single chunk or gets cut in half.
+          each chunk is embedded as one vector. Move the knobs and watch the boundaries shift — and
+          whether a fact lands inside a single chunk or gets cut in half.
         </p>
 
         <div
@@ -234,8 +231,9 @@ export function ChunkingOverlapLab(props: LabProps) {
 
         <div className="vlab-model">
           <b>Size</b> trades context for precision: too big and the vector is a diluted average of
-          many topics; too small and a chunk loses the context that made it meaningful. <b>Overlap</b>{" "}
-          is insurance against facts that fall on a boundary — paid for in duplicated storage.
+          many topics; too small and a chunk loses the context that made it meaningful.{" "}
+          <b>Overlap</b> is insurance against facts that fall on a boundary — paid for in duplicated
+          storage.
         </div>
 
         <section className="clab-presets">

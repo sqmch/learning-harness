@@ -1,16 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { LabProps } from "../registry";
-import {
-  type V2,
-  dot,
-  mag,
-  normalize,
-  cosine,
-  euclidean,
-  angleDeg,
-  heading,
-} from "../vec";
+import { type V2, dot, mag, normalize, cosine, euclidean, angleDeg, heading } from "../vec";
 
 // ── plane geometry (all in viewBox units; SVG scales to its square host) ──
 const SIZE = 520;
@@ -84,12 +75,20 @@ function head(tip: Px): string {
   const w = 5.5;
   const bx = tip.x - ux * h;
   const by = tip.y - uy * h;
-  return [`${tip.x},${tip.y}`, `${bx - uy * w},${by + ux * w}`, `${bx + uy * w},${by - ux * w}`].join(" ");
+  return [
+    `${tip.x},${tip.y}`,
+    `${bx - uy * w},${by + ux * w}`,
+    `${bx + uy * w},${by - ux * w}`,
+  ].join(" ");
 }
 
 function Toggle(props: { on: boolean; onClick: () => void; children: ReactNode }) {
   return (
-    <button className={`lab-toggle ${props.on ? "on" : ""}`} onClick={props.onClick} aria-pressed={props.on}>
+    <button
+      className={`lab-toggle ${props.on ? "on" : ""}`}
+      onClick={props.onClick}
+      aria-pressed={props.on}
+    >
       <span className="lab-toggle-dot" />
       {props.children}
     </button>
@@ -270,7 +269,12 @@ export function VectorSimilarityLab(props: LabProps) {
     <div className="vlab">
       {/* ── the plane ── */}
       <div className="vlab-stage">
-        <svg ref={svgRef} className="vlab-svg" viewBox={`0 0 ${SIZE} ${SIZE}`} style={{ touchAction: "none" }}>
+        <svg
+          ref={svgRef}
+          className="vlab-svg"
+          viewBox={`0 0 ${SIZE} ${SIZE}`}
+          style={{ touchAction: "none" }}
+        >
           {gridLines}
           <line className="lab-axis" x1={MARGIN} y1={C} x2={SIZE - MARGIN} y2={C} />
           <line className="lab-axis" x1={C} y1={MARGIN} x2={C} y2={SIZE - MARGIN} />
@@ -356,8 +360,8 @@ export function VectorSimilarityLab(props: LabProps) {
           )}
         </svg>
         <p className="vlab-foot">
-          Drawn in 2-D so you can see it. Real embeddings carry <strong>384</strong> numbers —
-          same math, more axes than anyone can picture. The feel you get here is the real thing.
+          Drawn in 2-D so you can see it. Real embeddings carry <strong>384</strong> numbers — same
+          math, more axes than anyone can picture. The feel you get here is the real thing.
         </p>
       </div>
 
@@ -384,8 +388,8 @@ export function VectorSimilarityLab(props: LabProps) {
         </section>
 
         <div className="vlab-model">
-          <b>Dot product</b> = how much the two arrows agree, with longer arrows counting for
-          more. <b>Cosine</b> = that same agreement, but size-blind — squeezed onto a −1…1 scale.
+          <b>Dot product</b> = how much the two arrows agree, with longer arrows counting for more.{" "}
+          <b>Cosine</b> = that same agreement, but size-blind — squeezed onto a −1…1 scale.
         </div>
 
         {coach && <div className="vlab-coach">{coach}</div>}
@@ -421,8 +425,8 @@ export function VectorSimilarityLab(props: LabProps) {
             <AgreeBar value={d} max={maxAbs} />
           </div>
           <p className="vlab-agree-foot">
-            Cosine rescales this to −1…1 by dividing out the lengths:{" "}
-            {fmt(d)} ÷ ({fmt(mA)} × {fmt(mB)}) = <b>{hasLen ? fmt(c) : "—"}</b>.
+            Cosine rescales this to −1…1 by dividing out the lengths: {fmt(d)} ÷ ({fmt(mA)} ×{" "}
+            {fmt(mB)}) = <b>{hasLen ? fmt(c) : "—"}</b>.
           </p>
         </section>
 
@@ -430,17 +434,23 @@ export function VectorSimilarityLab(props: LabProps) {
           <div className="vlab-readout">
             <div className="vlab-row">
               <span className="k">{aRole}</span>
-              <span className="val">[{fmt(A.x)}, {fmt(A.y)}]</span>
+              <span className="val">
+                [{fmt(A.x)}, {fmt(A.y)}]
+              </span>
             </div>
             {aText && <div className="vlab-rowsub">“{aText}”</div>}
             <div className="vlab-row">
               <span className="k">{bRole}</span>
-              <span className="val">[{fmt(B.x)}, {fmt(B.y)}]</span>
+              <span className="val">
+                [{fmt(B.x)}, {fmt(B.y)}]
+              </span>
             </div>
             {bText && <div className="vlab-rowsub">“{bText}”</div>}
             <div className="vlab-row">
               <span className="k">Length of A · Length of B</span>
-              <span className="val">{fmt(mA)} · {fmt(mB)}</span>
+              <span className="val">
+                {fmt(mA)} · {fmt(mB)}
+              </span>
             </div>
             <div className="vlab-row">
               <span className="k">Angle between</span>
@@ -460,7 +470,9 @@ export function VectorSimilarityLab(props: LabProps) {
             <span className="n">2</span>
             <div>
               <b>components</b> — A is [{fmt(A.x)}, {fmt(A.y)}], that's 2 numbers.
-              <span className="sub">its dimensionality · what <code>a.length</code> checks</span>
+              <span className="sub">
+                its dimensionality · what <code>a.length</code> checks
+              </span>
             </div>
           </div>
           <div className="vlab-duality-row">
@@ -486,8 +498,8 @@ export function VectorSimilarityLab(props: LabProps) {
           </Toggle>
           {showProj && hasLen && (
             <p className="vlab-note">
-              Geometric view: dot = length of A × how far B reaches along it ={" "}
-              <b>{fmt(mA)}</b> × <b>{fmt(projLen)}</b> = <b>{fmt(d)}</b>.
+              Geometric view: dot = length of A × how far B reaches along it = <b>{fmt(mA)}</b> ×{" "}
+              <b>{fmt(projLen)}</b> = <b>{fmt(d)}</b>.
             </p>
           )}
           <Toggle on={showDistance} onClick={() => setShowDistance((s) => !s)}>

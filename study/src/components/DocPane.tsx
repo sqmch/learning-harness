@@ -56,6 +56,10 @@ export function DocPane(props: {
     if (props.module) {
       setDoc(props.module.docs.includes("LESSON.md") ? "LESSON.md" : props.module.docs[0]);
     }
+    // re-pick the default doc only when the module *id* changes — not when the
+    // module object's identity churns on a background refetch, which would reset
+    // the reader's current tab. (Same id-keyed pattern the lab components use.)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.module?.id]);
 
   useEffect(() => {
@@ -73,6 +77,9 @@ export function DocPane(props: {
     return () => {
       cancelled = true;
     };
+    // keyed on module id + selected doc; a same-id refetch must not re-fire the
+    // load (see the note on the effect above).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.module?.id, doc]);
 
   // swap ```visual placeholders for sandboxed iframes (built here, not by the

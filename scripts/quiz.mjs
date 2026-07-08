@@ -97,7 +97,9 @@ function walkUp(start) {
   }
 }
 function resolveRepo(repoPath) {
-  return path.resolve(repoPath ?? process.env.HARNESS_REPO ?? walkUp(process.cwd()) ?? process.cwd());
+  return path.resolve(
+    repoPath ?? process.env.HARNESS_REPO ?? walkUp(process.cwd()) ?? process.cwd(),
+  );
 }
 
 // ---- argv: separate --flags (each takes a value) from positionals ----
@@ -175,7 +177,9 @@ function serializeItem(item, depth) {
       if (!Array.isArray(v) || v.length === 0) {
         lines.push(`${inner}"history": []`);
       } else {
-        const entries = v.map((e) => `${IND.repeat(depth + 2)}${serializeHistoryEntry(e)}`).join(",\n");
+        const entries = v
+          .map((e) => `${IND.repeat(depth + 2)}${serializeHistoryEntry(e)}`)
+          .join(",\n");
         lines.push(`${inner}"history": [\n${entries}\n${inner}]`);
       }
     } else {
@@ -217,7 +221,17 @@ function cmdDue(flags, rest) {
     .filter((it) => validIso(it?.due))
     .map((it) => ({ it, over: daysBetween(it.due, today) }))
     .filter((x) => x.over >= 0) // today >= due
-    .sort((a, b) => (a.it.due < b.it.due ? -1 : a.it.due > b.it.due ? 1 : a.it.id < b.it.id ? -1 : a.it.id > b.it.id ? 1 : 0));
+    .sort((a, b) =>
+      a.it.due < b.it.due
+        ? -1
+        : a.it.due > b.it.due
+          ? 1
+          : a.it.id < b.it.id
+            ? -1
+            : a.it.id > b.it.id
+              ? 1
+              : 0,
+    );
 
   const total = due.length;
   console.log(`${total} quiz item(s) due as of ${today}${total ? " — most overdue first." : "."}`);
@@ -225,7 +239,9 @@ function cmdDue(flags, rest) {
 
   const rows = due.slice(0, limit);
   if (rows.length < total) {
-    console.log(`showing ${rows.length}; ${total - rows.length} more due (raise --limit, or --limit 0 for all).`);
+    console.log(
+      `showing ${rows.length}; ${total - rows.length} more due (raise --limit, or --limit 0 for all).`,
+    );
   }
   console.log("");
 
@@ -246,7 +262,11 @@ function cmdDue(flags, rest) {
 }
 
 function cmdGrade(flags, rest) {
-  const { args, repoPath } = take(rest, 2, "grade <id> <correct|partial|wrong> [--note \"…\"] [--today YYYY-MM-DD] [repoPath]");
+  const { args, repoPath } = take(
+    rest,
+    2,
+    'grade <id> <correct|partial|wrong> [--note "…"] [--today YYYY-MM-DD] [repoPath]',
+  );
   const [id, result] = args;
   if (!["correct", "partial", "wrong"].includes(result)) {
     die(`grade result must be correct | partial | wrong (got "${result}")`);
@@ -272,7 +292,11 @@ function cmdGrade(flags, rest) {
 }
 
 function cmdTutored(flags, rest) {
-  const { args, repoPath } = take(rest, 1, "tutored <id> [--note \"…\"] [--today YYYY-MM-DD] [repoPath]");
+  const { args, repoPath } = take(
+    rest,
+    1,
+    'tutored <id> [--note "…"] [--today YYYY-MM-DD] [repoPath]',
+  );
   const [id] = args;
   const repoRoot = resolveRepo(repoPath);
   const { abs, data: bank } = loadBank(repoRoot);
@@ -286,15 +310,25 @@ function cmdTutored(flags, rest) {
   item.interval = 1;
   item.due = addDays(today, 1);
   if (!Array.isArray(item.history)) item.history = [];
-  item.history.push(note !== undefined ? { date: today, result: "tutored", note } : { date: today, result: "tutored" });
+  item.history.push(
+    note !== undefined
+      ? { date: today, result: "tutored", note }
+      : { date: today, result: "tutored" },
+  );
 
   saveBank(abs, bank);
-  console.log(`tutored ${id}: interval ${oldIv}d→1d, due ${oldDue}→${item.due} (asked but taught — re-tests tomorrow)`);
+  console.log(
+    `tutored ${id}: interval ${oldIv}d→1d, due ${oldDue}→${item.due} (asked but taught — re-tests tomorrow)`,
+  );
   return 0;
 }
 
 function cmdSeed(flags, rest) {
-  const { args, repoPath } = take(rest, 3, "seed <module> <id> \"<question>\" [--today YYYY-MM-DD] [repoPath]");
+  const { args, repoPath } = take(
+    rest,
+    3,
+    'seed <module> <id> "<question>" [--today YYYY-MM-DD] [repoPath]',
+  );
   const [module, id, question] = args;
   const repoRoot = resolveRepo(repoPath);
   const { abs, data: bank } = loadBank(repoRoot);
@@ -310,7 +344,11 @@ function cmdSeed(flags, rest) {
 }
 
 function cmdReschedule(flags, rest) {
-  const { args, repoPath } = take(rest, 2, "reschedule <id> <YYYY-MM-DD> [--note \"…\"] [--today YYYY-MM-DD] [repoPath]");
+  const { args, repoPath } = take(
+    rest,
+    2,
+    'reschedule <id> <YYYY-MM-DD> [--note "…"] [--today YYYY-MM-DD] [repoPath]',
+  );
   const [id, newDue] = args;
   if (!validIso(newDue)) die(`reschedule date must be a real YYYY-MM-DD date (got "${newDue}")`);
   const repoRoot = resolveRepo(repoPath);
@@ -324,7 +362,9 @@ function cmdReschedule(flags, rest) {
   item.due = newDue; // interval untouched — a reschedule moves the date, it does not grade
   if (!Array.isArray(item.history)) item.history = [];
   item.history.push(
-    note !== undefined ? { date: today, result: "rescheduled", note } : { date: today, result: "rescheduled" },
+    note !== undefined
+      ? { date: today, result: "rescheduled", note }
+      : { date: today, result: "rescheduled" },
   );
 
   saveBank(abs, bank);

@@ -11,7 +11,10 @@ export type FileState = "idle" | "loading" | "ready" | "missing";
  * state instead. Inactive means no fetch and no listener, so the always-mounted
  * overlay costs nothing while closed.
  */
-export function useRepoFile(path: string, active: boolean): { raw: string | null; state: FileState } {
+export function useRepoFile(
+  path: string,
+  active: boolean,
+): { raw: string | null; state: FileState } {
   const [raw, setRaw] = useState<string | null>(null);
   const [state, setState] = useState<FileState>("idle");
 

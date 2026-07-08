@@ -104,9 +104,11 @@ function main() {
 
     const parseProblems = [];
     if (progress.missing) parseProblems.push("tutor/progress.json is missing");
-    else if (!progress.ok) parseProblems.push(`tutor/progress.json is not valid JSON (${progress.error})`);
+    else if (!progress.ok)
+      parseProblems.push(`tutor/progress.json is not valid JSON (${progress.error})`);
     if (quizBank.missing) parseProblems.push("tutor/quiz-bank.json is missing");
-    else if (!quizBank.ok) parseProblems.push(`tutor/quiz-bank.json is not valid JSON (${quizBank.error})`);
+    else if (!quizBank.ok)
+      parseProblems.push(`tutor/quiz-bank.json is not valid JSON (${quizBank.error})`);
     if (!journalExists) parseProblems.push("tutor/journal.md is missing");
 
     if (parseProblems.length === 0) {
@@ -126,12 +128,20 @@ function main() {
         stdio: ["ignore", "pipe", "ignore"],
       });
     } catch {
-      add("uncommitted", "warn", "could not run git status (not a git repo, or git unavailable) — skipping the uncommitted-state check");
+      add(
+        "uncommitted",
+        "warn",
+        "could not run git status (not a git repo, or git unavailable) — skipping the uncommitted-state check",
+      );
     }
     if (gitOut !== null) {
       const dirty = parsePorcelain(gitOut).filter(isCourseState);
       if (dirty.length === 0) {
-        add("uncommitted", "ok", "no uncommitted course state (tutor/, curriculum/, COURSE.md clean)");
+        add(
+          "uncommitted",
+          "ok",
+          "no uncommitted course state (tutor/, curriculum/, COURSE.md clean)",
+        );
       } else {
         const stale = [];
         for (const rel of dirty) {
@@ -145,9 +155,17 @@ function main() {
           if (ageH > STALE_HOURS) stale.push(`${rel} (${ageH.toFixed(0)}h)`);
         }
         if (stale.length > 0) {
-          add("uncommitted", "fail", `uncommitted course state older than ${STALE_HOURS}h — a session's state was never committed: ${trim(stale)}`);
+          add(
+            "uncommitted",
+            "fail",
+            `uncommitted course state older than ${STALE_HOURS}h — a session's state was never committed: ${trim(stale)}`,
+          );
         } else {
-          add("uncommitted", "warn", `uncommitted course state (commit at session close): ${trim(dirty)}`);
+          add(
+            "uncommitted",
+            "warn",
+            `uncommitted course state (commit at session close): ${trim(dirty)}`,
+          );
         }
       }
     }
@@ -174,11 +192,23 @@ function main() {
     } else if (!newestGrade) {
       add("unjournaled", "ok", "no graded quiz items yet — nothing to journal");
     } else if (!newestJournal) {
-      add("unjournaled", "fail", `quiz items were graded on ${newestGrade} but journal.md has no dated session entries`);
+      add(
+        "unjournaled",
+        "fail",
+        `quiz items were graded on ${newestGrade} but journal.md has no dated session entries`,
+      );
     } else if (newestGrade > newestJournal) {
-      add("unjournaled", "fail", `quiz items were graded on ${newestGrade} but that session was never journaled (last journal entry ${newestJournal})`);
+      add(
+        "unjournaled",
+        "fail",
+        `quiz items were graded on ${newestGrade} but that session was never journaled (last journal entry ${newestJournal})`,
+      );
     } else {
-      add("unjournaled", "ok", `last journal entry (${newestJournal}) is current with the newest grading (${newestGrade})`);
+      add(
+        "unjournaled",
+        "ok",
+        `last journal entry (${newestJournal}) is current with the newest grading (${newestGrade})`,
+      );
     }
 
     // 4) PROGRESS SYNC — currentModule points at a real module dir; statuses are
@@ -197,12 +227,22 @@ function main() {
       for (const [id, m] of Object.entries(prog.modules ?? {})) {
         const st = m?.status;
         if (st === undefined) continue;
-        if (st === "complete") warns.push(`module "${id}" status "complete" (UI vocabulary; disk vocabulary is "completed")`);
+        if (st === "complete")
+          warns.push(
+            `module "${id}" status "complete" (UI vocabulary; disk vocabulary is "completed")`,
+          );
         else if (!VALID.has(st)) problems.push(`module "${id}" has unknown status "${st}"`);
       }
       if (problems.length > 0) add("progress-sync", "fail", [...problems, ...warns].join("; "));
       else if (warns.length > 0) add("progress-sync", "warn", warns.join("; "));
-      else add("progress-sync", "ok", cur ? `currentModule "${cur}" exists; all module statuses valid` : "no currentModule set; all module statuses valid");
+      else
+        add(
+          "progress-sync",
+          "ok",
+          cur
+            ? `currentModule "${cur}" exists; all module statuses valid`
+            : "no currentModule set; all module statuses valid",
+        );
     }
   }
 

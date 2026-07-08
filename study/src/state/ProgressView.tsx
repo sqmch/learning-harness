@@ -32,7 +32,10 @@ function DurationCell({ duration }: { duration: Row["duration"] }) {
   const { days, ongoing } = duration;
   const n = days === 1 ? "1 day" : `${days} days`;
   return (
-    <span className={ongoing ? "pm-ongoing" : ""} title={ongoing ? "elapsed since start" : "start → completion"}>
+    <span
+      className={ongoing ? "pm-ongoing" : ""}
+      title={ongoing ? "elapsed since start" : "start → completion"}
+    >
       {days === 0 ? (ongoing ? "today" : "same day") : n}
       {ongoing ? " ongoing" : ""}
     </span>
@@ -44,7 +47,14 @@ function HintPips({ hints }: { hints: boolean[] }) {
   return (
     <span
       className="hint-pips"
-      title={used === 0 ? "no hints used" : `used ${hints.map((h, i) => (h ? `hint-${i + 1}` : null)).filter(Boolean).join(", ")}`}
+      title={
+        used === 0
+          ? "no hints used"
+          : `used ${hints
+              .map((h, i) => (h ? `hint-${i + 1}` : null))
+              .filter(Boolean)
+              .join(", ")}`
+      }
     >
       {hints.map((on, i) => (
         <span key={i} className={`hint-pip ${on ? "on" : ""}`}>

@@ -89,7 +89,8 @@ export const TerminalPane = forwardRef<
         term.write(new Uint8Array(ev.data as ArrayBuffer));
       }
     };
-    ws.onclose = () => term.write("\r\n\x1b[33m[terminal disconnected — reload to reconnect]\x1b[0m\r\n");
+    ws.onclose = () =>
+      term.write("\r\n\x1b[33m[terminal disconnected — reload to reconnect]\x1b[0m\r\n");
 
     const sub = term.onData((data) => {
       if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "input", data }));
@@ -207,7 +208,9 @@ export const TerminalPane = forwardRef<
     if (state === "busy") return notify("terminal is busy — finish or Ctrl+C what's running first");
     if (state === "unknown") {
       type(sessionPhrase, false);
-      return notify("couldn't inspect the terminal — typed the opener; press Enter inside your agent");
+      return notify(
+        "couldn't inspect the terminal — typed the opener; press Enter inside your agent",
+      );
     }
     // idle: launch atomically, message already submitted
     if (resuming) type(`${agent.command} -c "resume session"`, true);
@@ -353,8 +356,8 @@ function PrefsPopover(props: { prefs: Prefs; setPrefs: (p: Prefs) => void }) {
       {row("agent", AGENTS, prefs.agent, prefs.agentCustom, "command, e.g. aider")}
       {row("editor", EDITORS, prefs.editor, prefs.editorCustom, "command, e.g. subl")}
       <p className="term-prefs-note">
-        Buttons just type into the terminal, so the command must be on your PATH. Claude
-        reads the tutor protocol from <code>CLAUDE.md</code>; codex &amp; friends get it via{" "}
+        Buttons just type into the terminal, so the command must be on your PATH. Claude reads the
+        tutor protocol from <code>CLAUDE.md</code>; codex &amp; friends get it via{" "}
         <code>AGENTS.md</code>.
       </p>
     </div>

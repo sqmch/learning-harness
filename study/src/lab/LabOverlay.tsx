@@ -14,6 +14,9 @@ export function LabOverlay(props: {
    */
   target: { entryKey: string; moduleId: string } | null;
 }) {
+  // Destructured so the esc-key effect can depend on these specific props rather
+  // than the whole `props` object (react-hooks/exhaustive-deps prefers this).
+  const { open, onClose } = props;
   const entries = useMemo(() => buildEntries(props.modules), [props.modules]);
 
   // the learner's own pick wins; else the chip that opened us; else follow the
@@ -21,8 +24,7 @@ export function LabOverlay(props: {
   // state, so it tracks the course loading and the learner advancing.
   const [pickedId, setPickedId] = useState<string | null>(null);
   useEffect(() => setPickedId(null), [props.target]); // a fresh chip-open overrides an old pick
-  const currentConfig =
-    props.modules.find((m) => m.id === props.currentModule)?.lab ?? null;
+  const currentConfig = props.modules.find((m) => m.id === props.currentModule)?.lab ?? null;
   const activeKey =
     pickedId ??
     props.target?.entryKey ??
@@ -40,28 +42,27 @@ export function LabOverlay(props: {
     : { config: null, moduleId: null };
 
   useEffect(() => {
-    if (!props.open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && props.onClose();
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [props.open, props.onClose]);
+  }, [open, onClose]);
 
   const isCurrent = (e: LabEntry) =>
     props.currentModule != null && e.modules.includes(props.currentModule);
 
   // the focus note only applies to the entry it was written for: the module's
   // focusLab when set, else any entry of the module whose config is active
-  const showFocus =
-    config?.focus && active && (!config.focusLab || config.focusLab === active.key);
+  const showFocus = config?.focus && active && (!config.focusLab || config.focusLab === active.key);
 
   return (
-    <div className={`lab-overlay ${props.open ? "" : "hidden"}`} aria-hidden={!props.open}>
+    <div className={`lab-overlay ${open ? "" : "hidden"}`} aria-hidden={!open}>
       <header className="lab-topbar">
         <div className="lab-wordmark">
           <span className="lab-mark">◇</span> lab
           <span className="lab-sub">/ visual intuition, wired to the course</span>
         </div>
-        <button className="lab-close" onClick={props.onClose}>
+        <button className="lab-close" onClick={onClose}>
           close <kbd>esc</kbd>
         </button>
       </header>
@@ -72,10 +73,9 @@ export function LabOverlay(props: {
           {entries.map((entry) => (
             <button
               key={entry.key}
-              className={[
-                "lab-rail-item",
-                active && entry.key === active.key ? "active" : "",
-              ].join(" ")}
+              className={["lab-rail-item", active && entry.key === active.key ? "active" : ""].join(
+                " ",
+              )}
               onClick={() => setPickedId(entry.key)}
             >
               <div className="lab-rail-title">
@@ -87,9 +87,8 @@ export function LabOverlay(props: {
             </button>
           ))}
           <div className="lab-rail-foot">
-            Visuals belong to modules: the tutor claims a stock lab or ships its own
-            interactive HTML per module via <code>lab.json</code> — see{" "}
-            <code>study/LAB.md</code>.
+            Visuals belong to modules: the tutor claims a stock lab or ships its own interactive
+            HTML per module via <code>lab.json</code> — see <code>study/LAB.md</code>.
           </div>
         </nav>
 
@@ -117,8 +116,8 @@ export function LabOverlay(props: {
               <div className="lab-placeholder-mark">◇</div>
               <h2>Nothing to visualize yet</h2>
               <p>
-                Visuals arrive with modules: the tutor adds them where a concept is better
-                seen than read.
+                Visuals arrive with modules: the tutor adds them where a concept is better seen than
+                read.
               </p>
             </div>
           )}

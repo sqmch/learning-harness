@@ -13,7 +13,9 @@ import { execSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
 const run = (cmd) =>
-  execSync(cmd, { stdio: ["ignore", "pipe", "pipe"] }).toString().trim();
+  execSync(cmd, { stdio: ["ignore", "pipe", "pipe"] })
+    .toString()
+    .trim();
 const die = (msg) => {
   console.error(msg);
   process.exit(1);
@@ -24,8 +26,12 @@ const die = (msg) => {
 // next `git pull` conflicts on it permanently.
 const ENGINE_DIRS = ["study/", "docs/", "templates/", "scripts/", ".github/"];
 const ENGINE_FILES = new Set([
-  "CLAUDE.md", "AGENTS.md", "README.md", "LICENSE",
-  "package.json", "package-lock.json",
+  "CLAUDE.md",
+  "AGENTS.md",
+  "README.md",
+  "LICENSE",
+  "package.json",
+  "package-lock.json",
 ]);
 export const isEngine = (p) => ENGINE_FILES.has(p) || ENGINE_DIRS.some((d) => p.startsWith(d));
 
@@ -45,10 +51,10 @@ function main() {
   if (run("git status --porcelain")) {
     die(
       `[update] refusing: the working tree has uncommitted changes.\n` +
-      `  A pull merges into these and can corrupt an unsaved session.\n` +
-      `  Ask your tutor to close the session properly first (commit progress,\n` +
-      `  quiz-bank, journal), then run \`npm run update\` again.\n` +
-      `  To see exactly what's unsaved: npm run doctor`
+        `  A pull merges into these and can corrupt an unsaved session.\n` +
+        `  Ask your tutor to close the session properly first (commit progress,\n` +
+        `  quiz-bank, journal), then run \`npm run update\` again.\n` +
+        `  To see exactly what's unsaved: npm run doctor`,
     );
   }
 
@@ -67,19 +73,20 @@ function main() {
   if (diverged.length && !force) {
     die(
       `[update] refusing: these engine files have local edits:\n` +
-      diverged.map((f) => `    ${f}`).join("\n") + `\n` +
-      `  Engine files belong to the harness and change only through this pull;\n` +
-      `  an instance never edits them. Local edits conflict permanently and break\n` +
-      `  every future update.\n` +
-      `  Move the change into a course path, or revert it: git checkout -- <file>\n` +
-      `  To pull anyway and take on the conflicts yourself: npm run update -- --force`
+        diverged.map((f) => `    ${f}`).join("\n") +
+        `\n` +
+        `  Engine files belong to the harness and change only through this pull;\n` +
+        `  an instance never edits them. Local edits conflict permanently and break\n` +
+        `  every future update.\n` +
+        `  Move the change into a course path, or revert it: git checkout -- <file>\n` +
+        `  To pull anyway and take on the conflicts yourself: npm run update -- --force`,
     );
   }
   if (diverged.length) {
     console.warn(
       `[update] --force: pulling despite local edits to ${diverged.length} engine ` +
-      `file(s) — expect conflicts:\n` +
-      diverged.map((f) => `    ${f}`).join("\n")
+        `file(s) — expect conflicts:\n` +
+        diverged.map((f) => `    ${f}`).join("\n"),
     );
   }
 
@@ -89,20 +96,19 @@ function main() {
   execSync(`git pull ${remote} ${branch}`, { stdio: "inherit" });
   const newHead = run("git rev-parse HEAD");
 
-  const deps = oldHead === newHead
-    ? []
-    : run(`git diff --name-only ${oldHead} ${newHead}`)
-        .split(/\r?\n/)
-        .filter(Boolean)
-        .filter((p) => {
-          const base = p.split("/").pop();
-          return base === "package.json" || base === "package-lock.json";
-        });
+  const deps =
+    oldHead === newHead
+      ? []
+      : run(`git diff --name-only ${oldHead} ${newHead}`)
+          .split(/\r?\n/)
+          .filter(Boolean)
+          .filter((p) => {
+            const base = p.split("/").pop();
+            return base === "package.json" || base === "package-lock.json";
+          });
 
   if (deps.length) {
-    console.log(
-      `[update] dependencies changed (${deps.join(", ")}) — running npm install ...`
-    );
+    console.log(`[update] dependencies changed (${deps.join(", ")}) — running npm install ...`);
     execSync("npm install", { stdio: "inherit", shell: true });
   }
 

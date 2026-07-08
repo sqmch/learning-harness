@@ -24,8 +24,8 @@ export function JournalView(props: { raw: string | null; state: FileState }) {
       <div className="state-empty">
         <div className="state-empty-mark">≡</div>
         <p>
-          No journal yet. The tutor writes a session entry at every close — what was covered,
-          where you struggled or shone, and open threads. It's the repo's memory across sessions.
+          No journal yet. The tutor writes a session entry at every close — what was covered, where
+          you struggled or shone, and open threads. It's the repo's memory across sessions.
         </p>
       </div>
     );

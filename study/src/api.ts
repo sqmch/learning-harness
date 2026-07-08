@@ -4,7 +4,13 @@ export interface VectorLabConfig {
   axisY?: string;
   a?: { role?: string; text?: string; v?: [number, number] };
   b?: { role?: string; text?: string; v?: [number, number] };
-  presets?: { label: string; a: [number, number]; b: [number, number]; aText?: string; bText?: string }[];
+  presets?: {
+    label: string;
+    a: [number, number];
+    b: [number, number];
+    aText?: string;
+    bText?: string;
+  }[];
 }
 /** Config for the Chunking & Overlap lab — words stand in for tokens. */
 export interface ChunkingLabConfig {

@@ -60,14 +60,22 @@ function typeName(v) {
 
 function matchesType(value, type) {
   switch (type) {
-    case "string": return typeof value === "string";
-    case "number": return typeof value === "number" && !Number.isNaN(value);
-    case "integer": return typeof value === "number" && Number.isInteger(value);
-    case "boolean": return typeof value === "boolean";
-    case "object": return value !== null && typeof value === "object" && !Array.isArray(value);
-    case "array": return Array.isArray(value);
-    case "null": return value === null;
-    default: return true; // unknown type keyword: don't block
+    case "string":
+      return typeof value === "string";
+    case "number":
+      return typeof value === "number" && !Number.isNaN(value);
+    case "integer":
+      return typeof value === "number" && Number.isInteger(value);
+    case "boolean":
+      return typeof value === "boolean";
+    case "object":
+      return value !== null && typeof value === "object" && !Array.isArray(value);
+    case "array":
+      return Array.isArray(value);
+    case "null":
+      return value === null;
+    default:
+      return true; // unknown type keyword: don't block
   }
 }
 
@@ -87,20 +95,29 @@ export function validate(schema, value, at, errors) {
   if (schema.type !== undefined) {
     const types = Array.isArray(schema.type) ? schema.type : [schema.type];
     if (!types.some((t) => matchesType(value, t))) {
-      errors.push({ path: at, message: `expected type ${types.join(" | ")}, got ${typeName(value)}` });
+      errors.push({
+        path: at,
+        message: `expected type ${types.join(" | ")}, got ${typeName(value)}`,
+      });
       return errors; // a wrong type makes every deeper check noise
     }
   }
 
   // --- enum ---
   if (Array.isArray(schema.enum) && !schema.enum.some((e) => eq(e, value))) {
-    errors.push({ path: at, message: `value ${JSON.stringify(value)} is not one of ${JSON.stringify(schema.enum)}` });
+    errors.push({
+      path: at,
+      message: `value ${JSON.stringify(value)} is not one of ${JSON.stringify(schema.enum)}`,
+    });
   }
 
   // --- string: pattern ---
   if (typeof value === "string" && typeof schema.pattern === "string") {
     if (!new RegExp(schema.pattern).test(value)) {
-      errors.push({ path: at, message: `${JSON.stringify(value)} does not match pattern /${schema.pattern}/` });
+      errors.push({
+        path: at,
+        message: `${JSON.stringify(value)} does not match pattern /${schema.pattern}/`,
+      });
     }
   }
 
@@ -117,10 +134,16 @@ export function validate(schema, value, at, errors) {
   // --- array: items / minItems / maxItems ---
   if (Array.isArray(value)) {
     if (typeof schema.minItems === "number" && value.length < schema.minItems) {
-      errors.push({ path: at, message: `array has ${value.length} item(s), fewer than minItems ${schema.minItems}` });
+      errors.push({
+        path: at,
+        message: `array has ${value.length} item(s), fewer than minItems ${schema.minItems}`,
+      });
     }
     if (typeof schema.maxItems === "number" && value.length > schema.maxItems) {
-      errors.push({ path: at, message: `array has ${value.length} item(s), more than maxItems ${schema.maxItems}` });
+      errors.push({
+        path: at,
+        message: `array has ${value.length} item(s), more than maxItems ${schema.maxItems}`,
+      });
     }
     if (schema.items) {
       value.forEach((el, i) => validate(schema.items, el, joinPath(at, i), errors));
@@ -142,7 +165,10 @@ export function validate(schema, value, at, errors) {
       if (Object.prototype.hasOwnProperty.call(props, key)) {
         validate(props[key], sub, joinPath(at, key), errors);
       } else if (addl === false) {
-        errors.push({ path: joinPath(at, key), message: "unexpected property (not allowed by schema)" });
+        errors.push({
+          path: joinPath(at, key),
+          message: "unexpected property (not allowed by schema)",
+        });
       } else if (isPlainObject(addl)) {
         // additionalProperties as a schema: applies to every unlisted property
         validate(addl, sub, joinPath(at, key), errors);
@@ -173,7 +199,12 @@ function loadSchema(name) {
 // ============================================================================
 
 const schemaForBasename = (base) =>
-  ({ "module.json": "module", "lab.json": "lab", "progress.json": "progress", "quiz-bank.json": "quiz-bank" }[base] ?? null);
+  ({
+    "module.json": "module",
+    "lab.json": "lab",
+    "progress.json": "progress",
+    "quiz-bank.json": "quiz-bank",
+  })[base] ?? null;
 
 function targets(root) {
   const list = []; // { rel, schema }
@@ -182,16 +213,25 @@ function targets(root) {
   // curriculum/*/module.json and lab.json
   const curriculum = path.join(root, "curriculum");
   if (fs.existsSync(curriculum) && fs.statSync(curriculum).isDirectory()) {
-    for (const ent of fs.readdirSync(curriculum, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
+    for (const ent of fs
+      .readdirSync(curriculum, { withFileTypes: true })
+      .sort((a, b) => (a.name < b.name ? -1 : 1))) {
       if (!ent.isDirectory()) continue;
-      for (const [file, schema] of [["module.json", "module"], ["lab.json", "lab"]]) {
-        if (fs.existsSync(path.join(curriculum, ent.name, file))) add(`curriculum/${ent.name}/${file}`, schema);
+      for (const [file, schema] of [
+        ["module.json", "module"],
+        ["lab.json", "lab"],
+      ]) {
+        if (fs.existsSync(path.join(curriculum, ent.name, file)))
+          add(`curriculum/${ent.name}/${file}`, schema);
       }
     }
   }
 
   // tutor state
-  for (const [rel, schema] of [["tutor/progress.json", "progress"], ["tutor/quiz-bank.json", "quiz-bank"]]) {
+  for (const [rel, schema] of [
+    ["tutor/progress.json", "progress"],
+    ["tutor/quiz-bank.json", "quiz-bank"],
+  ]) {
     if (fs.existsSync(path.join(root, rel))) add(rel, schema);
   }
 
@@ -224,7 +264,12 @@ function validateFile(root, rel, schemaName, schemas) {
   try {
     data = JSON.parse(text);
   } catch (err) {
-    return { id: rel, level: "fail", message: `not valid JSON: ${err?.message ?? err}`, errors: [] };
+    return {
+      id: rel,
+      level: "fail",
+      message: `not valid JSON: ${err?.message ?? err}`,
+      errors: [],
+    };
   }
   const errors = validate(schemas[schemaName], data, "", []);
   if (errors.length === 0) {
@@ -260,14 +305,25 @@ function main() {
 
   if (results.length === 0) {
     // Nothing to validate. Not a validation failure — but say so loudly, never silently.
-    results.push({ id: "validate", level: "warn", message: `no validatable files found under ${repoRoot}`, errors: [] });
+    results.push({
+      id: "validate",
+      level: "warn",
+      message: `no validatable files found under ${repoRoot}`,
+      errors: [],
+    });
   }
 
   // ---- render + exit ----
   const anyFail = results.some((r) => r.level === "fail");
 
   if (jsonMode) {
-    console.log(JSON.stringify(results.map(({ id, level, message }) => ({ id, level, message })), null, 2));
+    console.log(
+      JSON.stringify(
+        results.map(({ id, level, message }) => ({ id, level, message })),
+        null,
+        2,
+      ),
+    );
   } else {
     const glyph = { ok: "✓", warn: "⚠", fail: "✗" };
     console.log(`validate — ${repoRoot}`);
@@ -275,7 +331,8 @@ function main() {
       console.log(`${glyph[r.level]} ${r.id}`);
       if (r.level === "fail") {
         if (r.errors && r.errors.length) {
-          for (const e of r.errors) console.log(`    ${e.path === "" ? "(root)" : e.path}: ${e.message}`);
+          for (const e of r.errors)
+            console.log(`    ${e.path === "" ? "(root)" : e.path}: ${e.message}`);
         } else {
           console.log(`    ${r.message}`);
         }

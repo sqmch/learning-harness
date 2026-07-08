@@ -7,6 +7,16 @@ import { fileURLToPath } from "node:url";
 import express from "express";
 import { WebSocketServer } from "ws";
 import { spawn } from "@lydell/node-pty";
+import {
+  type ProcRow,
+  type PtyState,
+  classifyProcesses,
+  mergeModule,
+  guardRepoFile,
+  guardVisualFile,
+  mungeProjectDir,
+  resumeFreshness,
+} from "./helpers";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -39,7 +49,11 @@ app.get("/api/course", (_req, res) => {
   try {
     const curriculumDir = path.join(REPO_ROOT, "curriculum");
     const progressPath = path.join(REPO_ROOT, "tutor", "progress.json");
-    // a hand-edit typo in any JSON file must degrade gracefully, never brick the UI
+    // a hand-edit typo in any JSON file must degrade gracefully, never brick the UI.
+    // `any` is deliberate: this parses arbitrary hand-edited JSON that the merge
+    // logic below reads structurally (progress.modules, manifest.id, …); `unknown`
+    // would force assertions through all of it without buying real safety.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const readJson = (p: string): any | null => {
       try {
         return fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, "utf8")) : null;
@@ -61,23 +75,14 @@ app.get("/api/course", (_req, res) => {
         const manifestPath = path.join(curriculumDir, d.name, "module.json");
         const manifest = readJson(manifestPath);
         if (!manifest) return null;
-        const p = progress.modules?.[manifest.id] ?? {};
+        const p = progress.modules?.[manifest.id];
         const docs = ["LESSON.md", "BRIEF.md", "quiz.md"].filter((f) =>
           fs.existsSync(path.join(curriculumDir, d.name, f)),
         );
         // optional per-module math-lab config (generated from LESSON/BRIEF; see LAB.md)
         const lab = readJson(path.join(curriculumDir, d.name, "lab.json"));
-        // progress.json writes "completed"; the UI keys on "complete" — normalize here
-        const rawStatus = p.status ?? "not-started";
-        const status = rawStatus === "completed" ? "complete" : rawStatus;
-        return {
-          ...manifest,
-          status,
-          hintsUsed: p.hintsUsed ?? [],
-          checkAttempts: p.checkAttempts ?? 0,
-          docs,
-          lab,
-        };
+        // merge + "completed"→"complete" normalization lives in helpers (unit-tested)
+        return mergeModule(manifest, p, docs, lab);
       })
       .filter(Boolean)
       .sort((a, b) => a!.id.localeCompare(b!.id));
@@ -96,10 +101,8 @@ app.get("/api/course", (_req, res) => {
 // ---------- file reader (repo-rooted, md/json only) ----------
 app.get("/api/file", (req, res) => {
   const rel = String(req.query.path ?? "");
-  const abs = path.resolve(REPO_ROOT, rel);
-  const inRepo = abs === REPO_ROOT || abs.startsWith(REPO_ROOT + path.sep);
-  const allowed = [".md", ".json"].includes(path.extname(abs).toLowerCase());
-  if (!inRepo || !allowed) {
+  const { abs, ok } = guardRepoFile(REPO_ROOT, rel);
+  if (!ok) {
     res.status(403).json({ error: "forbidden" });
     return;
   }
@@ -117,10 +120,8 @@ app.get("/api/file", (req, res) => {
 // for assets. The client additionally renders these in sandboxed iframes.
 app.get("/visual/:moduleId/:file", (req, res) => {
   const { moduleId, file } = req.params as { moduleId: string; file: string };
-  const visualsDir = path.join(REPO_ROOT, "curriculum", moduleId, "visuals");
-  const abs = path.resolve(visualsDir, file);
-  const inDir = abs.startsWith(path.resolve(visualsDir) + path.sep);
-  if (!inDir || path.extname(abs).toLowerCase() !== ".html") {
+  const { abs, ok } = guardVisualFile(REPO_ROOT, moduleId, file);
+  if (!ok) {
     res.status(403).json({ error: "forbidden" });
     return;
   }
@@ -146,12 +147,6 @@ app.get("/visual/:moduleId/:file", (req, res) => {
 // "unknown", i.e. to refusal or an unsubmitted paste — never to typing into
 // the wrong program.
 
-interface ProcRow {
-  pid: number;
-  ppid: number;
-  cmd: string;
-}
-
 function listProcesses(): Promise<ProcRow[]> {
   return new Promise((resolve) => {
     if (process.platform === "win32") {
@@ -170,7 +165,7 @@ function listProcesses(): Promise<ProcRow[]> {
             const raw = JSON.parse(stdout);
             const arr = Array.isArray(raw) ? raw : [raw];
             resolve(
-              arr.map((p: any) => ({
+              arr.map((p: Record<string, unknown>) => ({
                 pid: Number(p.ProcessId),
                 ppid: Number(p.ParentProcessId),
                 cmd: String(p.CommandLine ?? p.Name ?? ""),
@@ -200,43 +195,10 @@ function listProcesses(): Promise<ProcRow[]> {
   });
 }
 
-// ConPTY console hosts appear inside the tree but are not learner programs
-const NOISE_STEMS = new Set(["conhost", "openconsole"]);
-
-/** "C:\...\claude.CMD" → "claude"; "node" → "node" */
-const tokenStem = (token: string) => {
-  const base = token.replace(/["']/g, "").split(/[\\/]/).pop() ?? "";
-  return base.replace(/\.[a-zA-Z0-9]+$/, "").toLowerCase();
-};
-
-async function classifyPty(
-  ptyPid: number,
-  agentCmd: string,
-): Promise<"idle" | "agent" | "busy" | "unknown"> {
-  const rows = await listProcesses();
-  if (rows.length === 0) return "unknown";
-  const byParent = new Map<number, ProcRow[]>();
-  for (const r of rows) {
-    if (!byParent.has(r.ppid)) byParent.set(r.ppid, []);
-    byParent.get(r.ppid)!.push(r);
-  }
-  const descendants: ProcRow[] = [];
-  const queue = [ptyPid];
-  while (queue.length) {
-    for (const child of byParent.get(queue.shift()!) ?? []) {
-      descendants.push(child);
-      queue.push(child.pid);
-    }
-  }
-  const real = descendants.filter((d) => !NOISE_STEMS.has(tokenStem(d.cmd.split(/\s+/)[0] ?? "")));
-  if (real.length === 0) return "idle";
-  // agent match: some token of some descendant's command line has the agent's
-  // name as its exact file stem ("claude.cmd" yes, "claude-notes.md" no)
-  const agentStem = tokenStem(agentCmd.trim().split(/\s+/)[0] ?? "");
-  const isAgent =
-    agentStem !== "" &&
-    real.some((d) => d.cmd.split(/\s+/).some((t) => tokenStem(t) === agentStem));
-  return isAgent ? "agent" : "busy";
+// Tree-walk classification (idle / agent / busy / unknown) is a pure function of
+// the process snapshot — see server/helpers.ts, where it is unit-tested.
+async function classifyPty(ptyPid: number, agentCmd: string): Promise<PtyState> {
+  return classifyProcesses(await listProcesses(), ptyPid, agentCmd);
 }
 
 // ---------- resume probe: a fresh claude conversation for this repo? ----------
@@ -248,8 +210,7 @@ async function classifyPty(
 const RESUME_FRESH_HOURS = 12;
 app.get("/api/resume", (_req, res) => {
   try {
-    const munged = REPO_ROOT.replace(/[^a-zA-Z0-9]/g, "-");
-    const dir = path.join(os.homedir(), ".claude", "projects", munged);
+    const dir = path.join(os.homedir(), ".claude", "projects", mungeProjectDir(REPO_ROOT));
     let newest = 0;
     if (fs.existsSync(dir)) {
       for (const f of fs.readdirSync(dir)) {
@@ -258,12 +219,7 @@ app.get("/api/resume", (_req, res) => {
         if (t > newest) newest = t;
       }
     }
-    if (!newest) {
-      res.json({ fresh: false, ageMinutes: null });
-      return;
-    }
-    const ageMinutes = Math.round((Date.now() - newest) / 60000);
-    res.json({ fresh: ageMinutes <= RESUME_FRESH_HOURS * 60, ageMinutes });
+    res.json(resumeFreshness(newest, Date.now(), RESUME_FRESH_HOURS));
   } catch (err) {
     res.json({ fresh: false, ageMinutes: null, error: String(err) });
   }

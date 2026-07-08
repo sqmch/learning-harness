@@ -47,7 +47,8 @@ const engineRoot = path.resolve(scriptDir, "..");
 function walkUp(start) {
   let dir = path.resolve(start);
   for (;;) {
-    if (fs.existsSync(path.join(dir, ".git")) || fs.existsSync(path.join(dir, "CLAUDE.md"))) return dir;
+    if (fs.existsSync(path.join(dir, ".git")) || fs.existsSync(path.join(dir, "CLAUDE.md")))
+      return dir;
     const parent = path.dirname(dir);
     if (parent === dir) return null;
     dir = parent;
@@ -61,8 +62,13 @@ function resolveModule(arg) {
     return { moduleDir: asPath, moduleId: path.basename(asPath) };
   }
   if (/^[0-9]{2}-[a-z0-9-]+$/.test(arg)) {
-    const repo = process.env.HARNESS_REPO ? path.resolve(process.env.HARNESS_REPO) : walkUp(process.cwd());
-    if (!repo) return { error: `bare module id "${arg}" given but no repo found — set HARNESS_REPO or run inside a course repo` };
+    const repo = process.env.HARNESS_REPO
+      ? path.resolve(process.env.HARNESS_REPO)
+      : walkUp(process.cwd());
+    if (!repo)
+      return {
+        error: `bare module id "${arg}" given but no repo found — set HARNESS_REPO or run inside a course repo`,
+      };
     const md = path.join(repo, "curriculum", arg);
     if (fs.existsSync(md) && fs.statSync(md).isDirectory()) return { moduleDir: md, moduleId: arg };
     return { error: `module "${arg}" not found under ${path.join(repo, "curriculum")}` };
@@ -77,6 +83,8 @@ const add = (id, level, message) => results.push({ id, level, message });
 // ============================================================================
 //  small utilities
 // ============================================================================
+// stripping ANSI colour codes genuinely requires matching the ESC (\x1b) control char
+// eslint-disable-next-line no-control-regex
 const stripAnsi = (s) => s.replace(/\x1b\[[0-9;]*[A-Za-z]/g, "");
 const readText = (abs) => {
   try {
@@ -105,8 +113,16 @@ function walkFiles(dir, base = dir, out = []) {
 }
 // git run scoped to the module dir; git's own repo discovery does the walk-up.
 function git(moduleDir, args) {
-  const r = spawnSync("git", ["-C", moduleDir, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
-  return { ok: r.status === 0 && !r.error, status: r.status, out: r.stdout ?? "", err: r.stderr ?? "" };
+  const r = spawnSync("git", ["-C", moduleDir, ...args], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  return {
+    ok: r.status === 0 && !r.error,
+    status: r.status,
+    out: r.stdout ?? "",
+    err: r.stderr ?? "",
+  };
 }
 
 // ---- module-level state, assigned by main(); the check functions below close
@@ -135,14 +151,21 @@ let volatilePresent = false;
 export function classify(run) {
   if (run.timedOut) return { verdict: "no-results", detail: "the check run timed out" };
   const out = run.out ?? "";
-  if (/No test files? found/i.test(out)) return { verdict: "no-results", detail: "no test files found", total: 0 };
+  if (/No test files? found/i.test(out))
+    return { verdict: "no-results", detail: "no test files found", total: 0 };
   const m = out.match(/^\s*Tests\s+(.+)$/m); // the per-test summary, not "Test Files"
-  if (!m) return { verdict: "no-results", detail: "no test summary emitted (checks crashed before running)", total: 0 };
+  if (!m)
+    return {
+      verdict: "no-results",
+      detail: "no test summary emitted (checks crashed before running)",
+      total: 0,
+    };
   const tail = m[1];
   const failed = Number((tail.match(/(\d+)\s+failed/) || [])[1] || 0);
   const passed = Number((tail.match(/(\d+)\s+passed/) || [])[1] || 0);
   const total = Number((tail.match(/\((\d+)\)\s*$/) || [])[1] || failed + passed);
-  if (total === 0) return { verdict: "no-results", detail: "zero tests ran", total: 0, failed, passed };
+  if (total === 0)
+    return { verdict: "no-results", detail: "zero tests ran", total: 0, failed, passed };
   if (failed === 0) return { verdict: "all-pass", total, failed, passed };
   const hasAssertion = /AssertionError/.test(run.raw ?? out);
   return { verdict: hasAssertion ? "assertion-fail" : "error-fail", total, failed, passed };
@@ -155,7 +178,8 @@ export function classify(run) {
 export function detectRelativeTiming(files) {
   const flagged = [];
   const CMP = /(<=?|>=?|toBeLessThan(?:OrEqual)?|toBeGreaterThan(?:OrEqual)?)/;
-  const CLOCK = /performance\s*\.\s*now\s*\(|Date\s*\.\s*now\s*\(|process\s*\.\s*hrtime|\.hrtime\b/g;
+  const CLOCK =
+    /performance\s*\.\s*now\s*\(|Date\s*\.\s*now\s*\(|process\s*\.\s*hrtime|\.hrtime\b/g;
   for (const { rel, text } of files) {
     if (!text) continue;
     const lines = text.split(/\r?\n/);
@@ -164,7 +188,13 @@ export function detectRelativeTiming(files) {
     const declRe = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=([^;]*)/;
     for (const line of lines) {
       const m = line.match(declRe);
-      if (m && (/performance\s*\.\s*now\s*\(|Date\s*\.\s*now\s*\(|process\s*\.\s*hrtime|\.hrtime\b/.test(m[2]))) timing.add(m[1]);
+      if (
+        m &&
+        /performance\s*\.\s*now\s*\(|Date\s*\.\s*now\s*\(|process\s*\.\s*hrtime|\.hrtime\b/.test(
+          m[2],
+        )
+      )
+        timing.add(m[1]);
     }
     // pass 2: durations derived by subtracting known timing vars (transitive)
     for (let pass = 0; pass < 3; pass++) {
@@ -215,7 +245,8 @@ export function lintVisualHtml(text) {
     /\bimport\s*\(\s*["']([^"']+)["']/gi,
     /(?:fetch|EventSource|WebSocket)\s*\(\s*["'`]([^"'`]+)["'`]/gi,
   ];
-  const NET_API = /\b(fetch|XMLHttpRequest|WebSocket|EventSource|importScripts)\b|navigator\s*\.\s*sendBeacon/;
+  const NET_API =
+    /\b(fetch|XMLHttpRequest|WebSocket|EventSource|importScripts)\b|navigator\s*\.\s*sendBeacon/;
   const external = new Set();
   const relative = new Set();
   for (const re of URL_ATTRS) {
@@ -257,7 +288,11 @@ function schemaCheck() {
     try {
       parsed = JSON.parse(r.stdout);
     } catch {
-      add("schema", "warn", `validate.mjs produced no parseable JSON (exit ${r.status})${r.stderr ? `: ${r.stderr.trim()}` : ""}`);
+      add(
+        "schema",
+        "warn",
+        `validate.mjs produced no parseable JSON (exit ${r.status})${r.stderr ? `: ${r.stderr.trim()}` : ""}`,
+      );
       return;
     }
     const want = new Set(present.map(([f]) => `curriculum/${moduleId}/${f}`));
@@ -305,11 +340,16 @@ function labCheck() {
   const problems = [];
   const warns = [];
   if (stockIds === null) {
-    if (claims.length) warns.push(`cannot verify stock claim(s) ${claims.join(", ")} — ${registryPath} not readable`);
+    if (claims.length)
+      warns.push(
+        `cannot verify stock claim(s) ${claims.join(", ")} — ${registryPath} not readable`,
+      );
   } else {
     for (const c of claims) {
       if (!stockIds.includes(c))
-        problems.push(`claims stock lab "${c}" but no such lab in registry.ts (available: ${stockIds.join(", ")}) — the engine will silently ignore it`);
+        problems.push(
+          `claims stock lab "${c}" but no such lab in registry.ts (available: ${stockIds.join(", ")}) — the engine will silently ignore it`,
+        );
     }
   }
   // visuals files must exist on disk
@@ -320,21 +360,36 @@ function labCheck() {
       continue;
     }
     const rel = String(v.file).replace(/^visuals\//, "");
-    if (!fs.existsSync(path.join(visualsDir, rel))) problems.push(`visuals entry "${v.file}" has no file at visuals/${rel}`);
+    if (!fs.existsSync(path.join(visualsDir, rel)))
+      problems.push(`visuals entry "${v.file}" has no file at visuals/${rel}`);
   }
   // focusLab, if set, should resolve to a claim or a visual (wrong target opens the wrong lab)
   if (lab.focusLab) {
-    const stockOk = stockIds ? stockIds.includes(lab.focusLab) && claims.includes(lab.focusLab) : claims.includes(lab.focusLab);
-    const visualKeys = visuals.filter((v) => v && v.file).flatMap((v) => {
-      const rel = String(v.file).replace(/^visuals\//, "");
-      return [rel, `${moduleId}/${rel}`, v.file];
-    });
+    const stockOk = stockIds
+      ? stockIds.includes(lab.focusLab) && claims.includes(lab.focusLab)
+      : claims.includes(lab.focusLab);
+    const visualKeys = visuals
+      .filter((v) => v && v.file)
+      .flatMap((v) => {
+        const rel = String(v.file).replace(/^visuals\//, "");
+        return [rel, `${moduleId}/${rel}`, v.file];
+      });
     if (!stockOk && !visualKeys.includes(lab.focusLab))
-      warns.push(`focusLab "${lab.focusLab}" resolves to no claimed lab or visual — the module would open on the wrong picture`);
+      warns.push(
+        `focusLab "${lab.focusLab}" resolves to no claimed lab or visual — the module would open on the wrong picture`,
+      );
   }
-  if (problems.length) add("lab", "fail", problems.join("; ") + (warns.length ? "; " + warns.join("; ") : ""));
+  if (problems.length)
+    add("lab", "fail", problems.join("; ") + (warns.length ? "; " + warns.join("; ") : ""));
   else if (warns.length) add("lab", "warn", warns.join("; "));
-  else add("lab", "ok", claims.length || visuals.length ? `lab.json valid (${[...claims, ...visuals.map(() => "visual")].join(", ")})` : "lab.json present, nothing claimed");
+  else
+    add(
+      "lab",
+      "ok",
+      claims.length || visuals.length
+        ? `lab.json valid (${[...claims, ...visuals.map(() => "visual")].join(", ")})`
+        : "lab.json present, nothing claimed",
+    );
 }
 
 // ============================================================================
@@ -343,26 +398,58 @@ function labCheck() {
 function runDynamic() {
   // is there anything runnable?
   if (!hasScaffold || !hasChecks) {
-    add("dynamic-run", "warn", "no scaffold+checks to run — dynamic sealed-reference verification NOT performed");
-    if (referenceDir) add("reference-run", "warn", "--reference given but there is no runnable scaffold+checks — skipped");
+    add(
+      "dynamic-run",
+      "warn",
+      "no scaffold+checks to run — dynamic sealed-reference verification NOT performed",
+    );
+    if (referenceDir)
+      add(
+        "reference-run",
+        "warn",
+        "--reference given but there is no runnable scaffold+checks — skipped",
+      );
     return;
   }
   const pkgPath = path.join(scaffoldDir, "package.json");
   const pkg = fs.existsSync(pkgPath) ? safeJson(readText(pkgPath)) : null;
   const hasCheckScript = pkg && pkg.scripts && typeof pkg.scripts.check === "string";
   if (!hasCheckScript) {
-    add("dynamic-run", "warn", "scaffold/package.json has no `check` script — cannot run the module's checks; dynamic verification NOT performed");
-    if (referenceDir) add("reference-run", "warn", "--reference given but the scaffold has no `check` script — skipped");
+    add(
+      "dynamic-run",
+      "warn",
+      "scaffold/package.json has no `check` script — cannot run the module's checks; dynamic verification NOT performed",
+    );
+    if (referenceDir)
+      add(
+        "reference-run",
+        "warn",
+        "--reference given but the scaffold has no `check` script — skipped",
+      );
     return;
   }
   if (!fs.existsSync(path.join(scaffoldDir, "node_modules"))) {
-    add("dynamic-run", "warn", "scaffold dependencies not installed (no node_modules) — run `npm install` in the scaffold, then re-run; dynamic verification NOT performed");
-    if (referenceDir) add("reference-run", "warn", "--reference given but scaffold node_modules is absent — skipped");
+    add(
+      "dynamic-run",
+      "warn",
+      "scaffold dependencies not installed (no node_modules) — run `npm install` in the scaffold, then re-run; dynamic verification NOT performed",
+    );
+    if (referenceDir)
+      add(
+        "reference-run",
+        "warn",
+        "--reference given but scaffold node_modules is absent — skipped",
+      );
     return;
   }
   if (skipRun) {
-    add("dynamic-run", "warn", "--skip-run: the as-is scaffold run and sealed-reference verification were NOT performed");
-    if (referenceDir) add("reference-run", "warn", "--skip-run: reference verification NOT performed");
+    add(
+      "dynamic-run",
+      "warn",
+      "--skip-run: the as-is scaffold run and sealed-reference verification were NOT performed",
+    );
+    if (referenceDir)
+      add("reference-run", "warn", "--skip-run: reference verification NOT performed");
     return;
   }
 
@@ -372,12 +459,29 @@ function runDynamic() {
   else {
     const c = classify(asis);
     if (c.verdict === "assertion-fail")
-      add("dynamic-run", "ok", `as-is scaffold fails ${c.failed}/${c.total} check(s) on assertions, as a virgin scaffold must`);
+      add(
+        "dynamic-run",
+        "ok",
+        `as-is scaffold fails ${c.failed}/${c.total} check(s) on assertions, as a virgin scaffold must`,
+      );
     else if (c.verdict === "all-pass")
-      add("dynamic-run", "fail", `as-is scaffold PASSES all ${c.total} check(s) — the gaps don't gate; a learner would have nothing to build (already completed?)`);
+      add(
+        "dynamic-run",
+        "fail",
+        `as-is scaffold PASSES all ${c.total} check(s) — the gaps don't gate; a learner would have nothing to build (already completed?)`,
+      );
     else if (c.verdict === "error-fail")
-      add("dynamic-run", "warn", `as-is scaffold fails ${c.failed}/${c.total}, but on thrown errors, not assertions — a virgin scaffold should fail ON ASSERTIONS, not crash (CLAUDE.md QA). Verify the gaps yield assertion failures`);
-    else add("dynamic-run", "fail", `as-is scaffold produced no test results — ${c.detail} (a harness that measures nothing must fail loudly)`);
+      add(
+        "dynamic-run",
+        "warn",
+        `as-is scaffold fails ${c.failed}/${c.total}, but on thrown errors, not assertions — a virgin scaffold should fail ON ASSERTIONS, not crash (CLAUDE.md QA). Verify the gaps yield assertion failures`,
+      );
+    else
+      add(
+        "dynamic-run",
+        "fail",
+        `as-is scaffold produced no test results — ${c.detail} (a harness that measures nothing must fail loudly)`,
+      );
   }
 
   // reference: overlay it and require ALL GREEN
@@ -391,9 +495,14 @@ function runDynamic() {
     if (ref.reason) add("reference-run", "warn", `could not run reference: ${ref.reason}`);
     else {
       const c = classify(ref);
-      if (c.verdict === "all-pass") add("reference-run", "ok", `sealed reference passes all ${c.total} check(s) (green)`);
+      if (c.verdict === "all-pass")
+        add("reference-run", "ok", `sealed reference passes all ${c.total} check(s) (green)`);
       else if (c.verdict === "assertion-fail" || c.verdict === "error-fail")
-        add("reference-run", "fail", `sealed reference FAILS ${c.failed}/${c.total} check(s) — a reference must go all-green before handover`);
+        add(
+          "reference-run",
+          "fail",
+          `sealed reference FAILS ${c.failed}/${c.total} check(s) — a reference must go all-green before handover`,
+        );
       else add("reference-run", "fail", `sealed reference produced no test results — ${c.detail}`);
     }
   }
@@ -407,7 +516,10 @@ function runChecks(overlayDir) {
   try {
     tmp = fs.mkdtempSync(path.join(os.tmpdir(), "coursesmith-qa-run-"));
     const tScaffold = path.join(tmp, "scaffold");
-    fs.cpSync(scaffoldDir, tScaffold, { recursive: true, filter: (s) => !s.split(/[\\/]/).includes("node_modules") });
+    fs.cpSync(scaffoldDir, tScaffold, {
+      recursive: true,
+      filter: (s) => !s.split(/[\\/]/).includes("node_modules"),
+    });
     fs.cpSync(checksDir, path.join(tmp, "checks"), { recursive: true });
     if (overlayDir) {
       for (const rel of walkFiles(overlayDir)) {
@@ -418,10 +530,23 @@ function runChecks(overlayDir) {
     }
     // junction (Windows) / dir symlink (POSIX) to the module's real install
     const link = path.join(tScaffold, "node_modules");
-    fs.symlinkSync(path.join(scaffoldDir, "node_modules"), link, process.platform === "win32" ? "junction" : "dir");
-    const r = spawnSync("npm", ["run", "check"], { cwd: tScaffold, encoding: "utf8", timeout: 300_000, shell: true });
+    fs.symlinkSync(
+      path.join(scaffoldDir, "node_modules"),
+      link,
+      process.platform === "win32" ? "junction" : "dir",
+    );
+    const r = spawnSync("npm", ["run", "check"], {
+      cwd: tScaffold,
+      encoding: "utf8",
+      timeout: 300_000,
+      shell: true,
+    });
     if (r.error && r.error.code === "ETIMEDOUT") return { timedOut: true };
-    return { status: r.status, out: stripAnsi(`${r.stdout ?? ""}\n${r.stderr ?? ""}`), raw: `${r.stdout ?? ""}\n${r.stderr ?? ""}` };
+    return {
+      status: r.status,
+      out: stripAnsi(`${r.stdout ?? ""}\n${r.stderr ?? ""}`),
+      raw: `${r.stdout ?? ""}\n${r.stderr ?? ""}`,
+    };
   } catch (err) {
     return { reason: err?.message ?? String(err) };
   } finally {
@@ -444,7 +569,8 @@ function safeRemove(dir) {
     if (fs.existsSync(link)) {
       try {
         const st = fs.lstatSync(link);
-        if (st.isSymbolicLink() || st.isDirectory()) fs.rmSync(link, { recursive: true, force: true });
+        if (st.isSymbolicLink() || st.isDirectory())
+          fs.rmSync(link, { recursive: true, force: true });
       } catch {
         /* fall through to the whole-tree remove */
       }
@@ -492,7 +618,8 @@ function main() {
       else if (a === "--skip-run") skipRun = true;
       else if (a === "--reference") {
         referenceDir = argv[++i];
-        if (referenceDir === undefined || referenceDir.startsWith("--")) die(`--reference requires a directory\n${USAGE}`);
+        if (referenceDir === undefined || referenceDir.startsWith("--"))
+          die(`--reference requires a directory\n${USAGE}`);
       } else if (a.startsWith("--reference=")) referenceDir = a.slice("--reference=".length);
       else if (a.startsWith("--")) die(`unknown flag "${a}"\n${USAGE}`);
       else positionals.push(a);
@@ -527,11 +654,22 @@ function main() {
     const volatile = ["hints/hint-1.md", "hints/hint-2.md", "hints/hint-3.md"];
     const missingStable = stable.filter((f) => !fs.existsSync(path.join(moduleDir, f)));
     const missingVolatile = volatile.filter((f) => !fs.existsSync(path.join(moduleDir, f)));
-    if (missingStable.length) add("required-files", "fail", `missing required file(s): ${missingStable.join(", ")}`);
+    if (missingStable.length)
+      add("required-files", "fail", `missing required file(s): ${missingStable.join(", ")}`);
     else if (!volatilePresent)
-      add("required-files", "warn", "stable layer present; volatile layer (scaffold/checks/hints) not generated yet — QA the module after generating it");
-    else if (missingVolatile.length) add("required-files", "fail", `missing required file(s): ${missingVolatile.join(", ")}`);
-    else add("required-files", "ok", "all required files present (LESSON, BRIEF, module.json, quiz.md, hints/hint-1..3)");
+      add(
+        "required-files",
+        "warn",
+        "stable layer present; volatile layer (scaffold/checks/hints) not generated yet — QA the module after generating it",
+      );
+    else if (missingVolatile.length)
+      add("required-files", "fail", `missing required file(s): ${missingVolatile.join(", ")}`);
+    else
+      add(
+        "required-files",
+        "ok",
+        "all required files present (LESSON, BRIEF, module.json, quiz.md, hints/hint-1..3)",
+      );
   }
 
   // ---- STATIC 2 — module.json + lab.json against the schemas ----
@@ -539,11 +677,20 @@ function main() {
 
   // ---- STATIC 3 — scaffold carries at least one TODO(you) gap ----
   if (!hasScaffold) {
-    add("scaffold-todo", volatilePresent ? "fail" : "warn", volatilePresent ? "no scaffold/ directory" : "no scaffold/ yet (volatile layer not generated)");
+    add(
+      "scaffold-todo",
+      volatilePresent ? "fail" : "warn",
+      volatilePresent
+        ? "no scaffold/ directory"
+        : "no scaffold/ yet (volatile layer not generated)",
+    );
   } else {
     const files = walkFiles(scaffoldDir);
-    const gapped = files.filter((rel) => (readText(path.join(scaffoldDir, rel)) ?? "").includes("TODO(you)"));
-    if (gapped.length > 0) add("scaffold-todo", "ok", `${gapped.length} scaffold file(s) carry TODO(you) gaps`);
+    const gapped = files.filter((rel) =>
+      (readText(path.join(scaffoldDir, rel)) ?? "").includes("TODO(you)"),
+    );
+    if (gapped.length > 0)
+      add("scaffold-todo", "ok", `${gapped.length} scaffold file(s) carry TODO(you) gaps`);
     else
       add(
         "scaffold-todo",
@@ -572,7 +719,11 @@ function main() {
 
   // ---- STATIC 5 — checks contain no relative-timing anti-pattern ----
   if (!hasChecks) {
-    add("timing", volatilePresent ? "fail" : "warn", volatilePresent ? "no checks/ directory" : "no checks/ yet (volatile layer not generated)");
+    add(
+      "timing",
+      volatilePresent ? "fail" : "warn",
+      volatilePresent ? "no checks/ directory" : "no checks/ yet (volatile layer not generated)",
+    );
   } else {
     const files = walkFiles(checksDir)
       .filter((rel) => /\.(m?[jt]sx?)$/.test(rel))
@@ -603,7 +754,9 @@ function main() {
 
   // ---- STATIC 8 — visuals HTML is self-contained (the serve-time CSP blocks network) ----
   {
-    const htmls = fs.existsSync(visualsDir) ? walkFiles(visualsDir).filter((f) => /\.html?$/i.test(f)) : [];
+    const htmls = fs.existsSync(visualsDir)
+      ? walkFiles(visualsDir).filter((f) => /\.html?$/i.test(f))
+      : [];
     if (htmls.length === 0) add("visuals-csp", "ok", "no visuals/*.html to lint");
     else {
       const fails = [];
@@ -611,13 +764,30 @@ function main() {
       for (const rel of htmls) {
         const text = readText(path.join(visualsDir, rel)) ?? "";
         const { external, relative, usesNetworkApi } = lintVisualHtml(text);
-        if (external.length) fails.push(`${rel}: external reference(s) ${external.slice(0, 5).join(", ")}`);
-        if (relative.length) warns.push(`${rel}: relative reference(s) ${relative.slice(0, 5).join(", ")} — must be inlined (nothing external is served)`);
-        if (usesNetworkApi) warns.push(`${rel}: uses a network API (fetch/XHR/WebSocket/…) — the CSP blocks all network, so it fails silently`);
+        if (external.length)
+          fails.push(`${rel}: external reference(s) ${external.slice(0, 5).join(", ")}`);
+        if (relative.length)
+          warns.push(
+            `${rel}: relative reference(s) ${relative.slice(0, 5).join(", ")} — must be inlined (nothing external is served)`,
+          );
+        if (usesNetworkApi)
+          warns.push(
+            `${rel}: uses a network API (fetch/XHR/WebSocket/…) — the CSP blocks all network, so it fails silently`,
+          );
       }
-      if (fails.length) add("visuals-csp", "fail", `${fails.join("; ")}${warns.length ? "; " + warns.join("; ") : ""} — visuals must inline all assets (served under a network-blocking CSP)`);
+      if (fails.length)
+        add(
+          "visuals-csp",
+          "fail",
+          `${fails.join("; ")}${warns.length ? "; " + warns.join("; ") : ""} — visuals must inline all assets (served under a network-blocking CSP)`,
+        );
       else if (warns.length) add("visuals-csp", "warn", warns.join("; "));
-      else add("visuals-csp", "ok", `${htmls.length} visual(s) are self-contained (no external references)`);
+      else
+        add(
+          "visuals-csp",
+          "ok",
+          `${htmls.length} visual(s) are self-contained (no external references)`,
+        );
     }
   }
 
@@ -627,15 +797,33 @@ function main() {
   } else {
     const ls = git(moduleDir, ["ls-files", "--", "scaffold"]);
     if (!ls.ok) {
-      add("scaffold-hygiene", "warn", "module is not under a git working tree — cannot check for committed node_modules (run against the in-repo module)");
+      add(
+        "scaffold-hygiene",
+        "warn",
+        "module is not under a git working tree — cannot check for committed node_modules (run against the in-repo module)",
+      );
     } else {
       const tracked = ls.out.split(/\r?\n/).filter((l) => /(^|\/)node_modules\//.test(l));
       if (tracked.length) {
-        add("scaffold-hygiene", "fail", `${tracked.length} node_modules file(s) are git-tracked under scaffold/ — gitignore node_modules and untrack it (it bloats every clone)`);
+        add(
+          "scaffold-hygiene",
+          "fail",
+          `${tracked.length} node_modules file(s) are git-tracked under scaffold/ — gitignore node_modules and untrack it (it bloats every clone)`,
+        );
       } else if (fs.existsSync(path.join(scaffoldDir, "node_modules"))) {
         const ci = git(moduleDir, ["check-ignore", "-q", "scaffold/node_modules"]);
-        if (ci.status === 0) add("scaffold-hygiene", "ok", "scaffold/node_modules present but gitignored (not tracked) — fine");
-        else add("scaffold-hygiene", "warn", "scaffold/node_modules present on disk and NOT gitignored — a stray `git add` would commit 100s of MB; add it to .gitignore");
+        if (ci.status === 0)
+          add(
+            "scaffold-hygiene",
+            "ok",
+            "scaffold/node_modules present but gitignored (not tracked) — fine",
+          );
+        else
+          add(
+            "scaffold-hygiene",
+            "warn",
+            "scaffold/node_modules present on disk and NOT gitignored — a stray `git add` would commit 100s of MB; add it to .gitignore",
+          );
       } else {
         add("scaffold-hygiene", "ok", "no node_modules under scaffold/");
       }
