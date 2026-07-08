@@ -1,6 +1,7 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { ModuleInfo } from "../api";
 import { dueItems, parseJournal, parseProgress, parseQuizBank } from "./parse";
+import { useDialogFocus } from "../useDialog";
 import { useRepoFile } from "./useRepoFile";
 import { QuizView } from "./QuizView";
 import { JournalView } from "./JournalView";
@@ -31,6 +32,8 @@ export function StateOverlay(props: {
   today: string;
 }) {
   const { open, onClose, tab, onTab } = props;
+  const rootRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(open, rootRef);
 
   useEffect(() => {
     if (!open) return;
@@ -61,7 +64,15 @@ export function StateOverlay(props: {
   };
 
   return (
-    <div className={`state-overlay ${open ? "" : "hidden"}`} aria-hidden={!open}>
+    <div
+      className={`state-overlay ${open ? "" : "hidden"}`}
+      ref={rootRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Your record — quiz, journal, and progress"
+      aria-hidden={!open}
+      tabIndex={-1}
+    >
       <header className="state-topbar">
         <div className="state-wordmark">
           <span className="state-mark">≡</span> record

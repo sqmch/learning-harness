@@ -110,7 +110,9 @@ export function DocPane(props: {
       if (pre.querySelector(".copy-btn")) return;
       const btn = document.createElement("button");
       btn.className = "copy-btn";
+      btn.type = "button";
       btn.textContent = "copy";
+      btn.setAttribute("aria-label", "Copy code to clipboard");
       btn.addEventListener("click", async () => {
         const code = pre.querySelector("code")?.textContent ?? "";
         try {

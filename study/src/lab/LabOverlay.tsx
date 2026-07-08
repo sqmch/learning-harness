@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ModuleInfo } from "../api";
+import { useDialogFocus } from "../useDialog";
 import { buildEntries, configFor, defaultEntryKey, type LabEntry } from "./registry";
 import "./lab.css";
 
@@ -17,6 +18,8 @@ export function LabOverlay(props: {
   // Destructured so the esc-key effect can depend on these specific props rather
   // than the whole `props` object (react-hooks/exhaustive-deps prefers this).
   const { open, onClose } = props;
+  const rootRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(open, rootRef);
   const entries = useMemo(() => buildEntries(props.modules), [props.modules]);
 
   // the learner's own pick wins; else the chip that opened us; else follow the
@@ -56,7 +59,15 @@ export function LabOverlay(props: {
   const showFocus = config?.focus && active && (!config.focusLab || config.focusLab === active.key);
 
   return (
-    <div className={`lab-overlay ${open ? "" : "hidden"}`} aria-hidden={!open}>
+    <div
+      className={`lab-overlay ${open ? "" : "hidden"}`}
+      ref={rootRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="The lab — this course's interactive visualizations"
+      aria-hidden={!open}
+      tabIndex={-1}
+    >
       <header className="lab-topbar">
         <div className="lab-wordmark">
           <span className="lab-mark">◇</span> lab

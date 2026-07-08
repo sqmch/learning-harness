@@ -8,6 +8,7 @@ import { LabOverlay } from "./lab/LabOverlay";
 import { buildEntries, type LabEntry } from "./lab/registry";
 import { StateOverlay, type StateTab } from "./state/StateOverlay";
 import { dueItems, parseQuizBank, todayISO, type QuizBank } from "./state/parse";
+import { readNum, readStr, writeStr } from "./storage";
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const DOCTOR_GLYPH: Record<string, string> = { ok: "✓", warn: "⚠", fail: "✗" };
@@ -26,8 +27,8 @@ export default function App() {
   const [quizBank, setQuizBank] = useState<QuizBank | null>(null);
   const today = todayISO();
 
-  const [railW, setRailW] = useState(() => Number(localStorage.getItem("ck.railW")) || 290);
-  const [termW, setTermW] = useState(() => Number(localStorage.getItem("ck.termW")) || 480);
+  const [railW, setRailW] = useState(() => readNum("study.railW", 290));
+  const [termW, setTermW] = useState(() => readNum("study.termW", 480));
   const drag = useRef<null | { which: "rail" | "term"; startX: number; startW: number }>(null);
 
   // session-close doctor: a topbar banner when a session was left unclosed.
@@ -38,7 +39,7 @@ export default function App() {
 
   const setSelectedId = useCallback((id: string) => {
     setSelectedIdRaw(id);
-    localStorage.setItem("ck.selected", id);
+    writeStr("study.selected", id);
   }, []);
 
   const load = useCallback(async () => {
@@ -47,7 +48,7 @@ export default function App() {
       setCourse(c);
       setSelectedIdRaw((prev) => {
         if (prev) return prev;
-        const remembered = localStorage.getItem("ck.selected");
+        const remembered = readStr("study.selected");
         if (remembered && c.modules.some((m) => m.id === remembered)) return remembered;
         return c.currentModule ?? c.modules[0]?.id ?? null;
       });
@@ -137,8 +138,8 @@ export default function App() {
     };
   }, []);
 
-  useEffect(() => localStorage.setItem("ck.railW", String(railW)), [railW]);
-  useEffect(() => localStorage.setItem("ck.termW", String(termW)), [termW]);
+  useEffect(() => writeStr("study.railW", String(railW)), [railW]);
+  useEffect(() => writeStr("study.termW", String(termW)), [termW]);
 
   const startDrag = (which: "rail" | "term") => (e: React.MouseEvent) => {
     drag.current = { which, startX: e.clientX, startW: which === "rail" ? railW : termW };

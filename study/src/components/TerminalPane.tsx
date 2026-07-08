@@ -11,6 +11,7 @@ import {
   type Prefs,
   type ToolChoice,
 } from "../prefs";
+import { useTheme, type Theme } from "../theme";
 
 /**
  * Quick actions are STATE-AWARE: before touching the terminal they ask the
@@ -114,6 +115,7 @@ export const TerminalPane = forwardRef<
   }, []);
 
   const [prefs, setPrefs] = usePrefs();
+  const [theme, setTheme] = useTheme();
   const [prefsOpen, setPrefsOpen] = useState(false);
   const agent = resolveTool(AGENTS, prefs.agent, prefs.agentCustom, AGENTS[0]);
   const editor = resolveTool(EDITORS, prefs.editor, prefs.editorCustom, EDITORS[0]);
@@ -311,15 +313,28 @@ export const TerminalPane = forwardRef<
             {notice}
           </div>
         )}
-        {prefsOpen && <PrefsPopover prefs={prefs} setPrefs={setPrefs} />}
+        {prefsOpen && (
+          <PrefsPopover prefs={prefs} setPrefs={setPrefs} theme={theme} setTheme={setTheme} />
+        )}
       </div>
       <div className="term-host" ref={hostRef} />
     </aside>
   );
 });
 
-function PrefsPopover(props: { prefs: Prefs; setPrefs: (p: Prefs) => void }) {
-  const { prefs, setPrefs } = props;
+const THEMES: { id: Theme; label: string }[] = [
+  { id: "system", label: "system" },
+  { id: "light", label: "light" },
+  { id: "dark", label: "dark" },
+];
+
+function PrefsPopover(props: {
+  prefs: Prefs;
+  setPrefs: (p: Prefs) => void;
+  theme: Theme;
+  setTheme: (t: Theme) => void;
+}) {
+  const { prefs, setPrefs, theme, setTheme } = props;
   const row = (
     kind: "agent" | "editor",
     choices: ToolChoice[],
@@ -355,6 +370,22 @@ function PrefsPopover(props: { prefs: Prefs; setPrefs: (p: Prefs) => void }) {
     <div className="term-prefs">
       {row("agent", AGENTS, prefs.agent, prefs.agentCustom, "command, e.g. aider")}
       {row("editor", EDITORS, prefs.editor, prefs.editorCustom, "command, e.g. subl")}
+      <div className="term-prefs-theme">
+        <span id="prefs-theme-label">theme</span>
+        <div className="theme-seg" role="group" aria-labelledby="prefs-theme-label">
+          {THEMES.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              className={theme === t.id ? "on" : ""}
+              aria-pressed={theme === t.id}
+              onClick={() => setTheme(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
       <p className="term-prefs-note">
         Buttons just type into the terminal, so the command must be on your PATH. Claude reads the
         tutor protocol from <code>CLAUDE.md</code>; codex &amp; friends get it via{" "}

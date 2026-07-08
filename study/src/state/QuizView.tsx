@@ -61,16 +61,23 @@ function ItemRow({ row, upcoming }: { row: DueRow; upcoming?: boolean }) {
   const { item, over } = row;
   return (
     <li className={`q-item ${upcoming ? "upcoming" : ""}`}>
-      <div className="q-item-top">
-        <span className="q-id">{item.id}</span>
-        {item.module && <span className="q-mod">{item.module}</span>}
-        <span className="q-when">{overdueLabel(over)}</span>
-        {upcoming && item.due && <span className="q-due">{item.due}</span>}
-        <span className="q-interval" title="current spacing interval, in days">
-          {typeof item.interval === "number" ? `${item.interval}d` : "—"}
+      {/* one bounded row: instrument line left (id · module · overdue), spacing
+          + history right — right-aligned WITHIN the measure, never the viewport edge */}
+      <div className="q-line1">
+        <span className="q-line1-left">
+          <span className="q-id">{item.id}</span>
+          {item.module && <span className="q-mod">{item.module}</span>}
+          <span className={`q-when ${over > 0 ? "overdue" : ""}`}>{overdueLabel(over)}</span>
+          {upcoming && item.due && <span className="q-due">{item.due}</span>}
         </span>
-        <History history={item.history} />
+        <span className="q-line1-right">
+          <span className="q-interval" title="current spacing interval, in days">
+            {typeof item.interval === "number" ? `${item.interval}d` : "—"}
+          </span>
+          <History history={item.history} />
+        </span>
       </div>
+      {/* the question the tutor wrote — reading face */}
       {item.question && <div className="q-question">{item.question}</div>}
     </li>
   );
@@ -112,21 +119,36 @@ export function QuizView(props: { bank: QuizBank | null; state: FileState; today
           {total} item{total === 1 ? "" : "s"} in the bank
           {scheduled.length > 0 ? `, ${scheduled.length} scheduled ahead.` : "."}
         </p>
-        <div className="q-legend" aria-hidden>
+        <div className="q-legend">
           <span className="q-legend-item">
-            <span className="q-glyph q-correct">●</span> correct
+            <span className="q-glyph q-correct" aria-hidden>
+              ●
+            </span>{" "}
+            correct
           </span>
           <span className="q-legend-item">
-            <span className="q-glyph q-partial">◐</span> partial
+            <span className="q-glyph q-partial" aria-hidden>
+              ◐
+            </span>{" "}
+            partial
           </span>
           <span className="q-legend-item">
-            <span className="q-glyph q-wrong">○</span> wrong
+            <span className="q-glyph q-wrong" aria-hidden>
+              ○
+            </span>{" "}
+            wrong
           </span>
           <span className="q-legend-item">
-            <span className="q-glyph q-tutored">◎</span> tutored
+            <span className="q-glyph q-tutored" aria-hidden>
+              ◎
+            </span>{" "}
+            tutored
           </span>
           <span className="q-legend-item">
-            <span className="q-glyph q-rescheduled">·</span> rescheduled
+            <span className="q-glyph q-rescheduled" aria-hidden>
+              ·
+            </span>{" "}
+            rescheduled
           </span>
         </div>
       </div>
