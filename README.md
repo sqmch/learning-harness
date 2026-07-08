@@ -1,7 +1,8 @@
-# learning-harness
+# coursesmith
 
 A file protocol + local web UI that turns the agentic CLI you already pay for — Claude
 Code, Codex, or similar — into a rigorous personal tutor for **learn-by-building** topics.
+It forges your course one module at a time, calibrated to how the last one actually went.
 
 No API keys, no hosted service, no accounts. Your course is generated into your clone as
 plain markdown and JSON: readable, versioned, yours.
@@ -33,7 +34,7 @@ tutoring, and this tool doesn't pretend to be that.
 You need `git`, Node 18+, and an agentic CLI you already use.
 
 ```
-git clone https://github.com/sqmch/learning-harness learn-rust   # name it after your course
+git clone https://github.com/sqmch/coursesmith learn-rust   # name it after your course
 cd learn-rust
 npm install
 npm run dev          # → http://localhost:5173

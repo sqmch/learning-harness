@@ -1,8 +1,8 @@
 {
-  "name": "learning-harness",
+  "name": "coursesmith",
   "private": true,
   "license": "MIT",
-  "repository": "github:sqmch/learning-harness",
+  "repository": "github:sqmch/coursesmith",
   "workspaces": [
     "study"
   ],
