@@ -126,6 +126,110 @@ test("quiz CLI: grade applies the interval rule deterministically with --today",
   assert.equal(bank.items[0].history.at(-1).result, "correct");
 });
 
+test("quiz CLI: reschedule writes a moves[] entry, never a history grade", () => {
+  const repo = mkInstance({
+    "tutor/quiz-bank.json": {
+      items: [
+        {
+          id: "00-x",
+          module: "00-demo",
+          question: "q?",
+          interval: 4,
+          due: "2026-07-08",
+          history: [],
+        },
+      ],
+    },
+  });
+  const r = runCli("quiz.mjs", [
+    "reschedule",
+    "00-x",
+    "2026-07-15",
+    "--note",
+    "declump",
+    "--today",
+    "2026-07-08",
+    repo,
+  ]);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /rescheduled 00-x: due 2026-07-08→2026-07-15 \(bookkeeping in moves\[\]/);
+
+  const bank = JSON.parse(fs.readFileSync(path.join(repo, "tutor", "quiz-bank.json"), "utf8"));
+  assert.equal(bank.items[0].due, "2026-07-15");
+  assert.equal(bank.items[0].interval, 4); // untouched — a reschedule does not grade
+  assert.equal(bank.items[0].history.length, 0); // NOT in history
+  assert.deepEqual(bank.items[0].moves, [
+    { date: "2026-07-08", action: "rescheduled", to: "2026-07-15", note: "declump" },
+  ]);
+});
+
+test("quiz CLI: legacy bank prints a migrate hint (stderr); migrate relocates + is idempotent", () => {
+  const legacy = {
+    items: [
+      {
+        id: "00-x",
+        module: "00-demo",
+        question: "q?",
+        interval: 3,
+        due: "2026-06-16",
+        history: [
+          { date: "2026-06-11", result: "correct" },
+          { date: "2026-06-13", result: "rescheduled", note: "re-spaced" },
+        ],
+      },
+    ],
+  };
+  const repo = mkInstance({ "tutor/quiz-bank.json": legacy });
+
+  // any command that loads a legacy bank nudges toward migrate (on stderr, so
+  // stdout a caller might parse stays clean)
+  const due = runCli("quiz.mjs", ["due", "--today", "2026-06-20", repo]);
+  assert.equal(due.status, 0, due.stdout + due.stderr);
+  assert.match(due.stderr, /legacy "rescheduled".*npm run quiz -- migrate/s);
+
+  // migrate relocates the legacy entry into moves[] and drops "to"
+  const m1 = runCli("quiz.mjs", ["migrate", repo]);
+  assert.equal(m1.status, 0, m1.stdout + m1.stderr);
+  assert.match(m1.stdout, /migrated 1 legacy "rescheduled" entry from history\[\] into moves\[\]/);
+  const after = JSON.parse(fs.readFileSync(path.join(repo, "tutor", "quiz-bank.json"), "utf8"));
+  assert.deepEqual(after.items[0].history, [{ date: "2026-06-11", result: "correct" }]);
+  assert.deepEqual(after.items[0].moves, [
+    { date: "2026-06-13", action: "rescheduled", note: "re-spaced" }, // no "to"
+  ]);
+
+  // idempotent: a second migrate finds nothing, exits 0, and leaves bytes identical
+  const bytesBefore = fs.readFileSync(path.join(repo, "tutor", "quiz-bank.json"), "utf8");
+  const m2 = runCli("quiz.mjs", ["migrate", repo]);
+  assert.equal(m2.status, 0, m2.stdout + m2.stderr);
+  assert.match(m2.stdout, /nothing to migrate/);
+  assert.equal(fs.readFileSync(path.join(repo, "tutor", "quiz-bank.json"), "utf8"), bytesBefore);
+  // and the migrated bank no longer triggers the hint
+  assert.doesNotMatch(m2.stderr, /npm run quiz -- migrate/);
+});
+
+test("doctor CLI: a reschedule newer than the last journal entry fails as unjournaled", () => {
+  const repo = mkInstance({
+    "tutor/progress.json": { learner, currentModule: null, modules: {} },
+    "tutor/quiz-bank.json": {
+      items: [
+        {
+          id: "x",
+          module: "m",
+          question: "q",
+          interval: 2,
+          due: "2026-07-20",
+          history: [{ date: "2026-07-01", result: "correct" }],
+          moves: [{ date: "2026-07-06", action: "rescheduled", to: "2026-07-20" }],
+        },
+      ],
+    },
+    "tutor/journal.md": "## 2026-07-03 — Session 4\nlast real session\n",
+  });
+  const r = runCli("doctor.mjs", [repo]);
+  assert.equal(r.status, 1, r.stdout + r.stderr);
+  assert.match(r.stdout, /✗ unjournaled: a quiz item was rescheduled on 2026-07-06/);
+});
+
 test("quiz CLI: due lists what's due, most overdue first", () => {
   const repo = mkInstance({
     "tutor/quiz-bank.json": {

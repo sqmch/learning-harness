@@ -2,7 +2,12 @@
 // the course-state path filter, and journal-heading date extraction.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parsePorcelain, isCourseState, newestJournalDate } from "../doctor.mjs";
+import {
+  parsePorcelain,
+  isCourseState,
+  newestJournalDate,
+  newestQuizActivity,
+} from "../doctor.mjs";
 
 test("parsePorcelain: modifications, renames, quoted paths, deletes, untracked", () => {
   const out = [
@@ -57,4 +62,45 @@ test("newestJournalDate: newest heading wins; a range heading takes its first da
     "2026-06-15",
   );
   assert.equal(newestJournalDate("no dated headings here\n### 2026-01-01 not an h2\n"), null);
+});
+
+test("newestQuizActivity: grades and moves both count; newest wins; kind names it", () => {
+  // grades-only bank → the newest grade, kind "graded" (the pre-moves behavior)
+  assert.deepEqual(
+    newestQuizActivity({
+      items: [
+        { history: [{ date: "2026-07-03", result: "correct" }] },
+        { history: [{ date: "2026-07-01", result: "wrong" }] },
+      ],
+    }),
+    { date: "2026-07-03", kind: "graded" },
+  );
+  // a reschedule newer than every grade is unjournaled session activity too — it
+  // wins, and is named "rescheduled" (a maintenance move must still be journaled)
+  assert.deepEqual(
+    newestQuizActivity({
+      items: [
+        {
+          history: [{ date: "2026-07-03", result: "correct" }],
+          moves: [{ date: "2026-07-06", action: "rescheduled", to: "2026-07-20" }],
+        },
+      ],
+    }),
+    { date: "2026-07-06", kind: "rescheduled" },
+  );
+  // a tie goes to "graded" (the stronger signal)
+  assert.deepEqual(
+    newestQuizActivity({
+      items: [
+        {
+          history: [{ date: "2026-07-06", result: "partial" }],
+          moves: [{ date: "2026-07-06", action: "rescheduled", to: "2026-07-10" }],
+        },
+      ],
+    }),
+    { date: "2026-07-06", kind: "graded" },
+  );
+  // no activity at all
+  assert.deepEqual(newestQuizActivity({ items: [] }), { date: null, kind: null });
+  assert.deepEqual(newestQuizActivity(null), { date: null, kind: null });
 });

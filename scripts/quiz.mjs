@@ -20,13 +20,23 @@
 //   grade      <id> <correct|partial|wrong>    judge → arithmetic + history append
 //   tutored    <id>                            asked but taught; schedules like a miss
 //   seed       <module> <id> "<question>"      add a new item (interval 1, due tomorrow)
-//   reschedule <id> <YYYY-MM-DD>               move due; bookkeeping, never a grade
-//   --note "…"     attach a note to the history entry (grade / tutored / reschedule)
+//   reschedule <id> <YYYY-MM-DD>               move due; bookkeeping, lands in moves[]
+//   migrate                                    move legacy rescheduled history → moves[]
+//   --note "…"     attach a note to the entry (grade / tutored / reschedule)
 //   repoPath / HARNESS_REPO / cwd walk-up      which instance to write (as doctor.mjs)
 //
-// WRITER OF RECORD for tutor/quiz-bank.json intervals & history. Emits 2-space
-// JSON with one-line history entries and a trailing newline — byte-identical to
-// the hand format, so the human git diff of a grade stays a few lines.
+// GRADES vs BOOKKEEPING (the split earned when the synthetic "rescheduled" grade
+// strained the format): history[] holds grades only — correct|partial|wrong|tutored,
+// entries for items actually asked. A reschedule moves a due date without judging
+// recall, so it lands in moves[] ({ date, action:"rescheduled", to, note? }), never
+// in history[]. Legacy banks that predate moves[] carry rescheduled entries inside
+// history[]; those are ignored as grades on read (the arithmetic never looks at
+// history), and `quiz.mjs migrate` relocates them into moves[] byte-stably.
+//
+// WRITER OF RECORD for tutor/quiz-bank.json intervals, history & moves. Emits
+// 2-space JSON with one-line history/moves entries and a trailing newline —
+// byte-identical to the hand format, so the human git diff of a grade stays a few
+// lines.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -146,8 +156,23 @@ function resolveNote(flags) {
   return String(flags.note);
 }
 
+// Count legacy { result: "rescheduled" } entries still living in history[] — the
+// pre-moves[] bookkeeping shape. Migrate relocates them; every other command that
+// touches a bank carrying them prints a one-line hint.
+export function countLegacyRescheduled(bank) {
+  let n = 0;
+  for (const item of bank?.items ?? []) {
+    for (const h of item?.history ?? []) {
+      if (h?.result === "rescheduled") n++;
+    }
+  }
+  return n;
+}
+
 // ---- quiz-bank I/O ----
-function loadBank(repoRoot) {
+// hintLegacy: on by default, so any command surfacing a legacy bank nudges toward
+// `migrate`. migrate itself passes false — it's the fix, not a place to advertise it.
+function loadBank(repoRoot, { hintLegacy = true } = {}) {
   const abs = path.join(repoRoot, BANK_REL);
   if (!fs.existsSync(abs)) die(`no ${BANK_REL} under ${repoRoot}`);
   let data;
@@ -157,14 +182,50 @@ function loadBank(repoRoot) {
     die(`${BANK_REL} is not valid JSON: ${err?.message ?? err}`);
   }
   if (!data || !Array.isArray(data.items)) die(`${BANK_REL} has no "items" array`);
+  if (hintLegacy) {
+    const legacy = countLegacyRescheduled(data);
+    if (legacy > 0) {
+      // stderr: advisory, must not pollute stdout that other tools may parse.
+      console.error(
+        `note: ${BANK_REL} has ${legacy} legacy "rescheduled" ${
+          legacy === 1 ? "entry" : "entries"
+        } in history — run \`npm run quiz -- migrate\` to move them into moves[].`,
+      );
+    }
+  }
   return { abs, data };
 }
 const findItem = (bank, id) => bank.items.find((it) => it && it.id === id);
 
-// ---- serializer: JSON.stringify(_, null, 2) shape, but history entries stay on
-//      one line each — the hand format, so a grade diffs to a handful of lines.
+// Relocate every legacy { result: "rescheduled" } history entry into moves[],
+// in place, preserving order. Grades stay in history[]; the migrated entries keep
+// their date and note but drop "to" — the destination due date is unrecoverable
+// from a legacy entry. Returns the count moved (0 = nothing to do). Idempotent:
+// a second pass finds no rescheduled history entries and moves nothing.
+export function migrateBank(bank) {
+  let moved = 0;
+  for (const item of bank?.items ?? []) {
+    if (!Array.isArray(item?.history)) continue;
+    const legacy = item.history.filter((h) => h?.result === "rescheduled");
+    if (legacy.length === 0) continue;
+    item.history = item.history.filter((h) => h?.result !== "rescheduled");
+    if (!Array.isArray(item.moves)) item.moves = [];
+    for (const h of legacy) {
+      const entry = { date: h.date, action: "rescheduled" };
+      if (h.note !== undefined) entry.note = h.note; // "to" omitted: unknowable for legacy
+      item.moves.push(entry);
+      moved++;
+    }
+  }
+  return moved;
+}
+
+// ---- serializer: JSON.stringify(_, null, 2) shape, but history AND moves entries
+//      stay on one line each — the hand format, so a grade or a reschedule diffs to
+//      a handful of lines.
 const IND = "  ";
-function serializeHistoryEntry(entry) {
+const INLINE_ENTRY_ARRAYS = new Set(["history", "moves"]);
+function serializeInlineEntry(entry) {
   const parts = Object.entries(entry).map(([k, v]) => `${JSON.stringify(k)}: ${JSON.stringify(v)}`);
   return `{ ${parts.join(", ")} }`;
 }
@@ -173,14 +234,14 @@ function serializeItem(item, depth) {
   const inner = IND.repeat(depth + 1);
   const lines = [];
   for (const [k, v] of Object.entries(item)) {
-    if (k === "history") {
+    if (INLINE_ENTRY_ARRAYS.has(k)) {
       if (!Array.isArray(v) || v.length === 0) {
-        lines.push(`${inner}"history": []`);
+        lines.push(`${inner}${JSON.stringify(k)}: []`);
       } else {
         const entries = v
-          .map((e) => `${IND.repeat(depth + 2)}${serializeHistoryEntry(e)}`)
+          .map((e) => `${IND.repeat(depth + 2)}${serializeInlineEntry(e)}`)
           .join(",\n");
-        lines.push(`${inner}"history": [\n${entries}\n${inner}]`);
+        lines.push(`${inner}${JSON.stringify(k)}: [\n${entries}\n${inner}]`);
       }
     } else {
       lines.push(`${inner}${JSON.stringify(k)}: ${JSON.stringify(v)}`);
@@ -360,15 +421,34 @@ function cmdReschedule(flags, rest) {
   const note = resolveNote(flags);
   const oldDue = item.due;
   item.due = newDue; // interval untouched — a reschedule moves the date, it does not grade
-  if (!Array.isArray(item.history)) item.history = [];
-  item.history.push(
+  if (!Array.isArray(item.moves)) item.moves = [];
+  item.moves.push(
     note !== undefined
-      ? { date: today, result: "rescheduled", note }
-      : { date: today, result: "rescheduled" },
+      ? { date: today, action: "rescheduled", to: newDue, note }
+      : { date: today, action: "rescheduled", to: newDue },
   );
 
   saveBank(abs, bank);
-  console.log(`rescheduled ${id}: due ${oldDue}→${newDue} (bookkeeping, not a grade)`);
+  console.log(`rescheduled ${id}: due ${oldDue}→${newDue} (bookkeeping in moves[], not a grade)`);
+  return 0;
+}
+
+function cmdMigrate(flags, rest) {
+  const { repoPath } = take(rest, 0, "migrate [repoPath]");
+  const repoRoot = resolveRepo(repoPath);
+  // hintLegacy off: this command IS the fix, no point nagging about it.
+  const { abs, data: bank } = loadBank(repoRoot, { hintLegacy: false });
+  const moved = migrateBank(bank);
+  if (moved === 0) {
+    console.log('nothing to migrate — no legacy "rescheduled" entries in history');
+    return 0; // exit 0 even when there's nothing to do
+  }
+  saveBank(abs, bank);
+  console.log(
+    `migrated ${moved} legacy "rescheduled" ${
+      moved === 1 ? "entry" : "entries"
+    } from history[] into moves[]`,
+  );
   return 0;
 }
 
@@ -378,7 +458,8 @@ const USAGE = `usage: node scripts/quiz.mjs <command> [...args] [--today YYYY-MM
   grade      <id> <correct|partial|wrong>    judge → arithmetic + history append
   tutored    <id>                            asked but taught; schedules like a miss
   seed       <module> <id> "<question>"      add a new item (interval 1, due tomorrow)
-  reschedule <id> <YYYY-MM-DD>               move due; bookkeeping, never a grade`;
+  reschedule <id> <YYYY-MM-DD>               move due; bookkeeping, lands in moves[]
+  migrate                                    legacy rescheduled history[] → moves[]`;
 
 function main() {
   const { flags, pos } = parseArgs(process.argv.slice(2));
@@ -401,6 +482,9 @@ function main() {
       break;
     case "reschedule":
       code = cmdReschedule(flags, rest);
+      break;
+    case "migrate":
+      code = cmdMigrate(flags, rest);
       break;
     default:
       die(cmd ? `unknown command "${cmd}".\n${USAGE}` : USAGE);

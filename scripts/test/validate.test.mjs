@@ -121,3 +121,73 @@ test("the four shipped schemas reject corrupted copies", () => {
   // lab: missing required provenance
   bad(load("lab"), { focus: "no provenance here" });
 });
+
+test("progress: optional bossCheck record — accepted, and strict on outcome/dates", () => {
+  const withBoss = (bossCheck, status = "completed") => ({
+    learner: { profile: "p", paceHoursPerWeek: "3-5", started: "2026-06-10" },
+    currentModule: "00-orientation",
+    modules: { "00-orientation": { status, bossCheck } },
+  });
+  // full record: passedAt + both a fail and a pass attempt
+  ok(
+    load("progress"),
+    withBoss({
+      passedAt: "2026-06-11",
+      attempts: [
+        { date: "2026-06-11", outcome: "failed", notes: "missed the continuation pattern" },
+        { date: "2026-06-11", outcome: "passed", notes: "re-explained, passed clean" },
+      ],
+    }),
+  );
+  // still failing: passedAt null, empty attempts is valid
+  ok(load("progress"), withBoss({ passedAt: null, attempts: [] }, "in-progress"));
+  // strict: a bad outcome enum is rejected
+  bad(
+    load("progress"),
+    withBoss({ passedAt: null, attempts: [{ date: "2026-06-11", outcome: "aced" }] }),
+  );
+  // strict: a malformed date is rejected (both passedAt and attempt.date)
+  bad(load("progress"), withBoss({ passedAt: "2026-6-11", attempts: [] }));
+  bad(
+    load("progress"),
+    withBoss({ passedAt: null, attempts: [{ date: "2026-6-11", outcome: "passed" }] }),
+  );
+  // strict: attempts require date + outcome
+  bad(load("progress"), withBoss({ passedAt: null, attempts: [{ outcome: "passed" }] }));
+  bad(load("progress"), withBoss({ passedAt: null, attempts: [{ date: "2026-06-11" }] }));
+});
+
+test("quiz-bank: moves accepted; legacy rescheduled history stays valid; malformed moves rejected", () => {
+  const item = (extra) => ({
+    id: "x",
+    module: "m",
+    question: "q",
+    interval: 1,
+    due: "2026-07-08",
+    history: [],
+    ...extra,
+  });
+  // a fresh reschedule (with "to") and a migrated-legacy move (no "to") both validate
+  ok(load("quiz-bank"), {
+    items: [
+      item({ moves: [{ date: "2026-07-08", action: "rescheduled", to: "2026-07-12", note: "…" }] }),
+    ],
+  });
+  ok(load("quiz-bank"), {
+    items: [item({ moves: [{ date: "2026-07-08", action: "rescheduled" }] })],
+  });
+  // reality wins: a pre-migration bank with rescheduled in history is still valid
+  ok(load("quiz-bank"), {
+    items: [item({ history: [{ date: "2026-06-13", result: "rescheduled", note: "…" }] })],
+  });
+  // strict inside moves: bad action enum, bad date, and missing required action all fail
+  bad(load("quiz-bank"), { items: [item({ moves: [{ date: "2026-07-08", action: "bumped" }] })] });
+  bad(load("quiz-bank"), {
+    items: [item({ moves: [{ date: "2026-7-8", action: "rescheduled" }] })],
+  });
+  bad(load("quiz-bank"), { items: [item({ moves: [{ date: "2026-07-08" }] })] });
+  // "to", when present, must be a real ISO date
+  bad(load("quiz-bank"), {
+    items: [item({ moves: [{ date: "2026-07-08", action: "rescheduled", to: "soon" }] })],
+  });
+});

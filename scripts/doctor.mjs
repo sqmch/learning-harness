@@ -79,6 +79,30 @@ export function newestJournalDate(text) {
   return newest;
 }
 
+// Newest dated quiz activity that a session must have journaled — over BOTH
+// history[] grades and moves[] reschedules. A reschedule performed in a session
+// is session activity too (the 06-13 maintenance reschedules WERE journaled —
+// that's the precedent), so a move newer than the last journal entry is just as
+// much an unclosed session as an ungraded one. Returns { date, kind } where kind
+// is "graded" | "rescheduled" | null; ties go to "graded" (the stronger signal).
+export function newestQuizActivity(bank) {
+  let grade = null;
+  let move = null;
+  for (const item of bank?.items ?? []) {
+    for (const h of item?.history ?? []) {
+      const d = isoDate(h?.date);
+      if (d && (!grade || d > grade)) grade = d;
+    }
+    for (const mv of item?.moves ?? []) {
+      const d = isoDate(mv?.date);
+      if (d && (!move || d > move)) move = d;
+    }
+  }
+  const date = [grade, move].filter(Boolean).sort().at(-1) ?? null;
+  const kind = date === null ? null : date === grade ? "graded" : "rescheduled";
+  return { date, kind };
+}
+
 function main() {
   // ---- argv: flags vs the one optional positional path (order-independent) ----
   const argv = process.argv.slice(2);
@@ -170,44 +194,40 @@ function main() {
       }
     }
 
-    // 3) UNJOURNALED GRADING — the newest quiz grading vs the newest journal entry.
-    //    Grading newer than the last journal entry means a session was graded but
-    //    never journaled (the 2026-07-05 failure exactly).
-    let newestGrade = null;
-    if (quizBank.ok && Array.isArray(quizBank.value?.items)) {
-      for (const item of quizBank.value.items) {
-        for (const h of item?.history ?? []) {
-          const d = isoDate(h?.date);
-          if (d && (!newestGrade || d > newestGrade)) newestGrade = d;
-        }
-      }
-    }
+    // 3) UNJOURNALED ACTIVITY — the newest quiz activity vs the newest journal
+    //    entry. Activity newer than the last journal entry means a session touched
+    //    the bank but was never journaled (the 2026-07-05 failure exactly). Both
+    //    grades (history[]) and reschedules (moves[]) count — a maintenance
+    //    reschedule is session work that must leave a journal trace.
+    const activity = quizBank.ok ? newestQuizActivity(quizBank.value) : { date: null, kind: null };
     let newestJournal = null;
     if (journalExists) {
       // tolerant: any "## YYYY-MM-DD …" heading; a "…-15/16" range takes the first date
       newestJournal = newestJournalDate(fs.readFileSync(journalPath, "utf8"));
     }
+    // "quiz items were graded" for grade activity; "a quiz item was rescheduled"
+    // for a move — so the message names what actually went unjournaled.
+    const didWhat =
+      activity.kind === "rescheduled"
+        ? `a quiz item was rescheduled on ${activity.date}`
+        : `quiz items were graded on ${activity.date}`;
     if (!quizBank.ok) {
       add("unjournaled", "warn", "skipped — quiz-bank.json did not parse");
-    } else if (!newestGrade) {
-      add("unjournaled", "ok", "no graded quiz items yet — nothing to journal");
+    } else if (!activity.date) {
+      add("unjournaled", "ok", "no graded or rescheduled quiz items yet — nothing to journal");
     } else if (!newestJournal) {
+      add("unjournaled", "fail", `${didWhat} but journal.md has no dated session entries`);
+    } else if (activity.date > newestJournal) {
       add(
         "unjournaled",
         "fail",
-        `quiz items were graded on ${newestGrade} but journal.md has no dated session entries`,
-      );
-    } else if (newestGrade > newestJournal) {
-      add(
-        "unjournaled",
-        "fail",
-        `quiz items were graded on ${newestGrade} but that session was never journaled (last journal entry ${newestJournal})`,
+        `${didWhat} but that session was never journaled (last journal entry ${newestJournal})`,
       );
     } else {
       add(
         "unjournaled",
         "ok",
-        `last journal entry (${newestJournal}) is current with the newest grading (${newestGrade})`,
+        `last journal entry (${newestJournal}) is current with the newest quiz activity (${activity.date})`,
       );
     }
 

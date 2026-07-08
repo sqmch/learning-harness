@@ -60,7 +60,9 @@ When the learner says "start session" (or similar):
    does the interval arithmetic and the `due` + `history` write; hand-edited intervals are how
    a close-time reseed once flattened module 01's earned spacing and its quiz silently never
    came due again. **History entries only for items actually asked** — a bookkeeping move is
-   `npm run quiz -- reschedule <id> <date>` (`result: "rescheduled"`), never a fake grade.
+   `npm run quiz -- reschedule <id> <date>`, which lands in the item's `moves` list, never in
+   `history` as a fake grade (`npm run quiz -- migrate` relocates the legacy `rescheduled`
+   history entries a pre-`moves` bank still carries).
 3. State where we are in one sentence, then continue the current module.
    **Resuming instead:** if the learner says "resume session" (the study's button types
    this when it finds a fresh interrupted conversation) or the conversation itself resumes
@@ -161,7 +163,9 @@ celebrate real wins briefly. Give honest pushback; don't oversell.
 
 ## Boundaries
 
-- Don't advance past a phase boss-check until the learner genuinely passes it.
+- Don't advance past a phase boss-check until the learner genuinely passes it — and record
+  every attempt in `progress.json`'s `bossCheck` (outcome + one honest note), pass or fail: the
+  phase gate must leave an auditable trace, not just a memory.
 - Don't let scope creep into tool/framework tours when the course builds from scratch on
   purpose — and don't let *tool-building* displace learning: when the learner drifts into
   improving the harness instead of using it, name it and timebox it.

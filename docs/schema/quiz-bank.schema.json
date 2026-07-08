@@ -41,7 +41,32 @@
                 "result": {
                   "type": "string",
                   "enum": ["correct", "partial", "wrong", "tutored", "rescheduled"],
-                  "$comment": "Grades: correct|partial|wrong|tutored. 'rescheduled' is bookkeeping, never a grade (entry exists only for items actually touched)."
+                  "$comment": "Grades only for NEW writes: correct|partial|wrong|tutored. 'rescheduled' is LEGACY — bookkeeping that predates the moves[] field; kept in the enum so pre-migration instances stay valid (reality wins until `npm run quiz -- migrate`). New reschedules land in moves[], never here."
+                },
+                "note": { "type": "string" }
+              },
+              "additionalProperties": true
+            }
+          },
+          "moves": {
+            "type": "array",
+            "$comment": "Optional. Bookkeeping that is not a grade — reschedules. Kept out of history[] so history stays grades-only. quiz.mjs is the writer of record (reschedule appends here; migrate moves legacy rescheduled history entries here).",
+            "items": {
+              "type": "object",
+              "required": ["date", "action"],
+              "properties": {
+                "date": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                "action": {
+                  "type": "string",
+                  "enum": ["rescheduled"]
+                },
+                "to": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "$comment": "The new due date. Present for reschedules quiz.mjs performs; OMITTED for entries migrated from legacy history, where the destination date is unrecoverable."
                 },
                 "note": { "type": "string" }
               },

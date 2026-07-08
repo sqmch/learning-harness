@@ -5,7 +5,15 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { nextInterval, addDays, daysBetween, validIso, serializeBank } from "../quiz.mjs";
+import {
+  nextInterval,
+  addDays,
+  daysBetween,
+  validIso,
+  serializeBank,
+  migrateBank,
+  countLegacyRescheduled,
+} from "../quiz.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -57,4 +65,63 @@ test("serializeBank: round-trips a real-shaped fixture byte-for-byte", () => {
   // Key order, one-line history entries, empty-history `[]`, and the trailing
   // newline must all survive — that is what keeps one grade's git diff small.
   assert.equal(out, lf);
+});
+
+test("serializeBank: moves entries are one-line too (grades-vs-bookkeeping split)", () => {
+  const raw = fs.readFileSync(path.join(here, "fixtures", "quiz-bank.moves.json"), "utf8");
+  const lf = raw.replace(/\r\n/g, "\n");
+  const out = serializeBank(JSON.parse(lf));
+  // moves[] round-trips exactly like history[]: one entry per line, empty `[]`
+  // inline, trailing newline — a reschedule's git diff stays a handful of lines.
+  assert.equal(out, lf);
+});
+
+test("countLegacyRescheduled: only rescheduled *history* entries count", () => {
+  const legacy = JSON.parse(
+    fs
+      .readFileSync(path.join(here, "fixtures", "quiz-bank.legacy.json"), "utf8")
+      .replace(/\r\n/g, "\n"),
+  );
+  assert.equal(countLegacyRescheduled(legacy), 3); // 00-statelessness, 00-output-pricing, 01-cosine-formula
+  // a modern move[] rescheduled entry is NOT legacy history and must not be counted
+  const modern = {
+    items: [{ moves: [{ date: "2026-07-01", action: "rescheduled" }], history: [] }],
+  };
+  assert.equal(countLegacyRescheduled(modern), 0);
+  assert.equal(countLegacyRescheduled({ items: [] }), 0);
+});
+
+test("migrateBank: legacy rescheduled history → moves, idempotent (twice = once)", () => {
+  const legacyRaw = fs
+    .readFileSync(path.join(here, "fixtures", "quiz-bank.legacy.json"), "utf8")
+    .replace(/\r\n/g, "\n");
+  const bank = JSON.parse(legacyRaw);
+
+  const moved = migrateBank(bank);
+  assert.equal(moved, 3); // the three legacy rescheduled history entries
+
+  // history[] is grades-only now; nothing rescheduled remains anywhere in it
+  for (const it of bank.items) {
+    for (const h of it.history) assert.notEqual(h.result, "rescheduled");
+  }
+  // the migrated entries live in moves[], carry date+note, and DROP "to"
+  const migrated = bank.items.flatMap((it) => it.moves ?? []).filter((m) => !("to" in m));
+  assert.equal(migrated.length, 3);
+  for (const m of migrated) {
+    assert.equal(m.action, "rescheduled");
+    assert.ok(validIso(m.date));
+    assert.equal("to" in m, false); // unknowable for legacy → omitted
+  }
+  // 01-cosine-formula already had a modern move[] entry (with "to"); migrate must
+  // preserve it and append the legacy entry AFTER it — order preserved, "to" kept
+  const cosine = bank.items.find((it) => it.id === "01-cosine-formula");
+  assert.equal(cosine.moves.length, 2);
+  assert.equal(cosine.moves[0].to, "2026-07-05"); // the pre-existing modern move, untouched
+  assert.equal("to" in cosine.moves[1], false); // the migrated legacy entry, appended after
+
+  // idempotent + byte-stable: a second pass moves nothing, serialization is identical
+  const bytes1 = serializeBank(bank);
+  const moved2 = migrateBank(bank);
+  assert.equal(moved2, 0);
+  assert.equal(serializeBank(bank), bytes1);
 });
