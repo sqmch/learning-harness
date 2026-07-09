@@ -1,4 +1,4 @@
-# coursesmith
+# praxeum
 
 A tutor protocol and a local web UI for running personal, **learn-by-building** courses
 through an agentic CLI — Claude Code, Codex, or anything else that can follow the
@@ -6,7 +6,7 @@ protocol. The course is generated into your clone, one module at a time, as plai
 markdown and JSON. No API keys, no hosted service, no accounts: the tutor is your own
 CLI agent, and all state lives in your files.
 
-![The coursesmith study running a live course: a course rail with module progress on the left, the module lesson typeset in the centre pane, and the tutor — an agentic CLI — mid-session in an embedded terminal on the right.](docs/assets/study.png)
+![The praxeum study running a live course: a course rail with module progress on the left, the module lesson typeset in the centre pane, and the tutor — an agentic CLI — mid-session in an embedded terminal on the right.](docs/assets/study.png)
 
 *The study over a live course: the rail and its progress, the lesson/brief/quiz pane, and the tutor session in the terminal — all read from the course's own files.*
 
@@ -40,7 +40,7 @@ Run the bootstrap straight from GitHub with `npx` — it clones the engine into 
 directory named after your course, and installs:
 
 ```
-npx github:sqmch/coursesmith new learn-rust   # names the clone after your course
+npx github:sqmch/praxeum new learn-rust   # names the clone after your course
 cd learn-rust
 npm run dev          # → http://localhost:5173
 ```
@@ -51,7 +51,7 @@ and `--from <url>` to clone a fork. The equivalent by hand — a plain clone, no
 "Use this template", which severs the history updates flow through:
 
 ```
-git clone https://github.com/sqmch/coursesmith learn-rust   # name it after your course
+git clone https://github.com/sqmch/praxeum learn-rust   # name it after your course
 cd learn-rust
 npm install
 npm run dev          # → http://localhost:5173
@@ -98,7 +98,7 @@ machinery without touching your course: `npm run update` (or plain `git pull`).
 
 To back your course up on your own GitHub — clone, don't use "Use this template" (template
 copies sever the history that updates flow through) — wire your repo as the backup remote.
-`coursesmith new <name> --backup <your-repo>` does this at setup; on an existing clone it's
+`praxeum new <name> --backup <your-repo>` does this at setup; on an existing clone it's
 the same rename by hand (and the first push, which the flag leaves to you):
 
 ```

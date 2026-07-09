@@ -1,6 +1,6 @@
 ---
 name: Course-run report
-about: How a real course run went — the most valuable contribution to coursesmith.
+about: How a real course run went — the most valuable contribution to praxeum.
 title: "[course-run] "
 labels: ["course-run"]
 ---

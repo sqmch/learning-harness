@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// Bootstrap a new course clone. This is the `coursesmith` bin (see package.json
+// Bootstrap a new course clone. This is the `praxeum` bin (see package.json
 // "bin"), meant to be run straight from GitHub with npx — no publish step:
 //
-//   npx github:sqmch/coursesmith new learn-rust
+//   npx github:sqmch/praxeum new learn-rust
 //
 // npx git-installs this repo into its cache and runs the declared bin. `"private":
 // true` in package.json does not block that (private only blocks `npm publish`).
@@ -15,7 +15,7 @@
 // next.
 //
 // Usage:
-//   coursesmith new <course-name> [--backup <url>] [--from <url>] [--skip-install]
+//   praxeum new <course-name> [--backup <url>] [--from <url>] [--skip-install]
 //
 // The script is main()-guarded like its siblings: the pure decisions (argv
 // parse, the Node-version and name predicates, the remote-dance command list,
@@ -29,7 +29,7 @@ import { pathToFileURL, fileURLToPath } from "node:url";
 
 // The engine's canonical home. --from overrides it (a fork, or — as the tests do
 // — a local path clone source, which git resolves offline).
-export const DEFAULT_ENGINE = "https://github.com/sqmch/coursesmith";
+export const DEFAULT_ENGINE = "https://github.com/sqmch/praxeum";
 export const MIN_NODE_MAJOR = 18;
 
 const die = (msg) => {
@@ -37,10 +37,10 @@ const die = (msg) => {
   process.exit(1);
 };
 
-export const USAGE = `coursesmith — bootstrap a new course clone
+export const USAGE = `praxeum — bootstrap a new course clone
 
 usage:
-  coursesmith new <course-name> [--backup <your-repo-url>] [--from <engine-url>]
+  praxeum new <course-name> [--backup <your-repo-url>] [--from <engine-url>]
 
   <course-name>    a new directory in the current folder, named after your course
   --backup <url>   wire your own (empty) GitHub repo as the backup remote now:
@@ -50,7 +50,7 @@ usage:
   --skip-install   clone and wire remotes but skip \`npm install\` (CI / offline)
 
 Run it straight from GitHub, no install:
-  npx github:sqmch/coursesmith new learn-rust`;
+  npx github:sqmch/praxeum new learn-rust`;
 
 // ---- pure decisions (exported; tested without touching git/npm/the disk) ----
 
@@ -127,7 +127,7 @@ export function remoteDance(backupUrl) {
 // a screen-scrape.
 export function nextSteps({ name, backup, branch = "master", skipInstall = false }) {
   const lines = [
-    `[coursesmith] done. Your course is in ${name}/.`,
+    `[praxeum] done. Your course is in ${name}/.`,
     ``,
     `Next steps:`,
     `  cd ${name}`,
@@ -167,46 +167,46 @@ function currentBranch(dir) {
 // is fatal with a message that says what to do.
 function runStep(label, file, args, opts = {}) {
   const r = spawnSync(file, args, { stdio: "inherit", ...opts });
-  if (r.error) die(`[coursesmith] could not run ${file}: ${r.error.message}`);
+  if (r.error) die(`[praxeum] could not run ${file}: ${r.error.message}`);
   if (r.status !== 0)
-    die(`[coursesmith] ${label} failed (exit ${r.status}). See the output above.`);
+    die(`[praxeum] ${label} failed (exit ${r.status}). See the output above.`);
 }
 
 function main() {
   const parsed = parseArgs(process.argv.slice(2));
-  if (parsed.error) die(`${USAGE}\n\n[coursesmith] ${parsed.error}`);
+  if (parsed.error) die(`${USAGE}\n\n[praxeum] ${parsed.error}`);
   if (!parsed.command) {
-    // bare `coursesmith` (or an npx run with no args): show help, exit clean.
+    // bare `praxeum` (or an npx run with no args): show help, exit clean.
     console.log(USAGE);
     process.exit(0);
   }
   if (parsed.command !== "new")
     die(
-      `${USAGE}\n\n[coursesmith] unknown command "${parsed.command}" — the only command is "new".`,
+      `${USAGE}\n\n[praxeum] unknown command "${parsed.command}" — the only command is "new".`,
     );
 
   // 1) ENVIRONMENT — git + a new-enough Node, before anything is created.
-  console.log(`[coursesmith] checking git and Node (>= ${MIN_NODE_MAJOR}) ...`);
+  console.log(`[praxeum] checking git and Node (>= ${MIN_NODE_MAJOR}) ...`);
   if (!nodeVersionOk(process.version))
     die(
-      `[coursesmith] refusing: Node ${process.version} is too old.\n` +
+      `[praxeum] refusing: Node ${process.version} is too old.\n` +
         `  Install Node ${MIN_NODE_MAJOR}+ (https://nodejs.org) and run this again.`,
     );
   if (!hasGit())
     die(
-      `[coursesmith] refusing: git is not on your PATH.\n` +
+      `[praxeum] refusing: git is not on your PATH.\n` +
         `  Install git (https://git-scm.com/downloads) and run this again.`,
     );
 
   const nameCheck = validateCourseName(parsed.name);
-  if (nameCheck.error) die(`${USAGE}\n\n[coursesmith] refusing: ${nameCheck.error}.`);
+  if (nameCheck.error) die(`${USAGE}\n\n[praxeum] refusing: ${nameCheck.error}.`);
   const name = parsed.name;
   const target = path.resolve(process.cwd(), name);
 
   // 2) REFUSE ON EXISTING DIR — clone would fail later; refuse early and clearly.
   if (fs.existsSync(target))
     die(
-      `[coursesmith] refusing: "${name}" already exists here (${target}).\n` +
+      `[praxeum] refusing: "${name}" already exists here (${target}).\n` +
         `  Choose a different course name, or remove that directory first, then run this again.`,
     );
 
@@ -215,13 +215,13 @@ function main() {
   //    commits from upstream), and a severed history breaks every future update
   //    permanently. A plain `git clone` keeps it.
   console.log(
-    `[coursesmith] cloning ${parsed.from} into ${name}/ (full clone — history is the update channel) ...`,
+    `[praxeum] cloning ${parsed.from} into ${name}/ (full clone — history is the update channel) ...`,
   );
   runStep("git clone", "git", ["clone", parsed.from, name]);
 
   // 4) REMOTES — only with --backup. Mechanizes the README's rename dance.
   if (parsed.backup) {
-    console.log(`[coursesmith] wiring remotes: origin → your backup, upstream → the engine ...`);
+    console.log(`[praxeum] wiring remotes: origin → your backup, upstream → the engine ...`);
     for (const cmd of remoteDance(parsed.backup)) {
       runStep(cmd.slice(0, 3).join(" "), cmd[0], cmd.slice(1), { cwd: target });
     }
@@ -234,17 +234,17 @@ function main() {
   //    escape hatch, announced loudly, never silent.
   if (parsed.skipInstall) {
     console.log(
-      `[coursesmith] skipping npm install (--skip-install) — run it yourself before npm run dev.`,
+      `[praxeum] skipping npm install (--skip-install) — run it yourself before npm run dev.`,
     );
   } else {
     console.log(
-      `[coursesmith] installing dependencies (npm install — this pulls the study's packages) ...`,
+      `[praxeum] installing dependencies (npm install — this pulls the study's packages) ...`,
     );
     const r = spawnSync("npm", ["install"], { cwd: target, stdio: "inherit", shell: true });
-    if (r.error) die(`[coursesmith] could not run npm: ${r.error.message}`);
+    if (r.error) die(`[praxeum] could not run npm: ${r.error.message}`);
     if (r.status !== 0)
       die(
-        `[coursesmith] npm install failed (exit ${r.status}).\n` +
+        `[praxeum] npm install failed (exit ${r.status}).\n` +
           `  Fix the error above, then run \`npm install\` inside ${name}/.`,
       );
   }

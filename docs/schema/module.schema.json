@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/sqmch/coursesmith/docs/schema/module.schema.json",
+  "$id": "https://github.com/sqmch/praxeum/docs/schema/module.schema.json",
   "title": "curriculum/NN-name/module.json",
   "description": "Per-module manifest. The stable layer, written when the course spine is built. See docs/FORMAT.md.",
   "type": "object",

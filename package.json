@@ -1,10 +1,10 @@
 {
-  "name": "coursesmith",
+  "name": "praxeum",
   "private": true,
   "license": "MIT",
-  "repository": "github:sqmch/coursesmith",
+  "repository": "github:sqmch/praxeum",
   "bin": {
-    "coursesmith": "scripts/bootstrap.mjs"
+    "praxeum": "scripts/bootstrap.mjs"
   },
   "workspaces": [
     "study"

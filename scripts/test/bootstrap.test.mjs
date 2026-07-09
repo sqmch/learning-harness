@@ -1,4 +1,4 @@
-// Tests for the `coursesmith new` bootstrap. Two layers:
+// Tests for the `praxeum new` bootstrap. Two layers:
 //   1. unit — the exported pure decisions (argv parse, Node-version + name
 //      predicates, the remote-dance list, the next-steps text). No git, no disk.
 //   2. integration — spawn the real CLI with --from pointing at a local path
@@ -127,7 +127,7 @@ const git = (cwd, args) => spawnSync("git", args, { cwd, encoding: "utf8" });
 
 const tempDirs = [];
 function mkWork() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "coursesmith-boot-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "praxeum-boot-"));
   tempDirs.push(dir);
   return dir;
 }
@@ -187,5 +187,5 @@ test("bootstrap: `new` with no course name refuses with the usage", () => {
   const r = runIn(work, ["new"]);
   assert.equal(r.status, 1, r.stdout + r.stderr);
   assert.match(r.stderr, /missing <course-name>/);
-  assert.match(r.stderr, /coursesmith new <course-name>/);
+  assert.match(r.stderr, /praxeum new <course-name>/);
 });

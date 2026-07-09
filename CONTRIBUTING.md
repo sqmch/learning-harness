@@ -1,6 +1,6 @@
 # Contributing
 
-coursesmith is **v0**, extracted from a single live course as it runs. The file formats
+praxeum is **v0**, extracted from a single live course as it runs. The file formats
 ([`docs/FORMAT.md`](docs/FORMAT.md)) and the tutor protocol ([`CLAUDE.md`](CLAUDE.md)) still move
 as the course surfaces new failures. So: **open an issue before building anything sizable** — a
 format change or a study feature may already be pending, in flight, or a deliberate non-goal
@@ -55,7 +55,7 @@ repo ships: `study/`, `docs/`, `templates/`, `scripts/`, `.github/`, `CLAUDE.md`
 
 **Editing an engine file inside an instance breaks updates forever** — the pull stops
 fast-forwarding, and it's how a protocol edit once went silently lost for two weeks. If you're
-improving the engine, do it here, in a clone of coursesmith itself, not in a course. If you're
+improving the engine, do it here, in a clone of praxeum itself, not in a course. If you're
 running a course and hit an engine limitation, that's a course-run report, not a local edit.
 
 ## License

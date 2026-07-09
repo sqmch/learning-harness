@@ -1,4 +1,4 @@
-// Flat ESLint config for the coursesmith engine. Two code groups, one shared
+// Flat ESLint config for the praxeum engine. Two code groups, one shared
 // formatter truce:
 //   - scripts/**       the enforcement CLIs + their node:test suites (plain Node ESM)
 //   - study/**         the study app (TypeScript: React front-end + Express server)

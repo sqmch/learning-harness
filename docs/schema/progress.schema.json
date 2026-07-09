@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/sqmch/coursesmith/docs/schema/progress.schema.json",
+  "$id": "https://github.com/sqmch/praxeum/docs/schema/progress.schema.json",
   "title": "tutor/progress.json",
   "description": "Learner profile, current module, and per-module status/hint/attempt records. See docs/FORMAT.md.",
   "type": "object",

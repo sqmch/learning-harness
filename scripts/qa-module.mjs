@@ -279,7 +279,7 @@ function schemaCheck() {
   }
   let tmp;
   try {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), "coursesmith-qa-schema-"));
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), "praxeum-qa-schema-"));
     const cdir = path.join(tmp, "curriculum", moduleId);
     fs.mkdirSync(cdir, { recursive: true });
     for (const [f] of present) fs.copyFileSync(path.join(moduleDir, f), path.join(cdir, f));
@@ -514,7 +514,7 @@ function runDynamic() {
 function runChecks(overlayDir) {
   let tmp;
   try {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), "coursesmith-qa-run-"));
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), "praxeum-qa-run-"));
     const tScaffold = path.join(tmp, "scaffold");
     fs.cpSync(scaffoldDir, tScaffold, {
       recursive: true,

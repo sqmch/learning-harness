@@ -1,6 +1,6 @@
 # Example module (illustrative)
 
-This directory is a **worked example of a coursesmith module** — the anatomy a first-time reader
+This directory is a **worked example of a praxeum module** — the anatomy a first-time reader
 can't otherwise see without generating one. It is **not part of any course** and is **not
 npm-runnable**: the `scaffold/` and `checks/` here are compact **sketches** meant to be read, not
 executed. The full format spec is [`docs/FORMAT.md`](../FORMAT.md); a real module lives under

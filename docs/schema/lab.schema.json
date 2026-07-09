@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/sqmch/coursesmith/docs/schema/lab.schema.json",
+  "$id": "https://github.com/sqmch/praxeum/docs/schema/lab.schema.json",
   "title": "curriculum/NN-name/lab.json",
   "description": "Optional per-module visualization declaration: claims a stock lab and/or ships self-contained visuals/. See docs/FORMAT.md.",
   "type": "object",

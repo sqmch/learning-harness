@@ -1,6 +1,6 @@
 # Agent instructions
 
-This repository is a **coursesmith instance**: a personal course taught by an AI tutor
+This repository is a **praxeum instance**: a personal course taught by an AI tutor
 following a strict protocol.
 
 **The protocol lives in [`CLAUDE.md`](CLAUDE.md)** (the filename is historical — the protocol

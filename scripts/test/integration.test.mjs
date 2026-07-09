@@ -16,7 +16,7 @@ const runCli = (script, args) =>
 
 const tempDirs = [];
 function mkInstance(files) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "coursesmith-it-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "praxeum-it-"));
   tempDirs.push(dir);
   for (const [rel, body] of Object.entries(files)) {
     const abs = path.join(dir, rel);
