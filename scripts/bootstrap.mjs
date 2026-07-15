@@ -126,12 +126,7 @@ export function remoteDance(backupUrl) {
 // The closing message, as lines. Pure so the exact guidance is a unit test, not
 // a screen-scrape.
 export function nextSteps({ name, backup, branch = "master", skipInstall = false }) {
-  const lines = [
-    `[praxeum] done. Your course is in ${name}/.`,
-    ``,
-    `Next steps:`,
-    `  cd ${name}`,
-  ];
+  const lines = [`[praxeum] done. Your course is in ${name}/.`, ``, `Next steps:`, `  cd ${name}`];
   if (skipInstall) lines.push(`  npm install          # you skipped this above`);
   lines.push(`  npm run dev          # → http://localhost:5173`);
   lines.push(`  then click "new course" in the browser to start onboarding`);
@@ -168,8 +163,7 @@ function currentBranch(dir) {
 function runStep(label, file, args, opts = {}) {
   const r = spawnSync(file, args, { stdio: "inherit", ...opts });
   if (r.error) die(`[praxeum] could not run ${file}: ${r.error.message}`);
-  if (r.status !== 0)
-    die(`[praxeum] ${label} failed (exit ${r.status}). See the output above.`);
+  if (r.status !== 0) die(`[praxeum] ${label} failed (exit ${r.status}). See the output above.`);
 }
 
 function main() {
@@ -181,9 +175,7 @@ function main() {
     process.exit(0);
   }
   if (parsed.command !== "new")
-    die(
-      `${USAGE}\n\n[praxeum] unknown command "${parsed.command}" — the only command is "new".`,
-    );
+    die(`${USAGE}\n\n[praxeum] unknown command "${parsed.command}" — the only command is "new".`);
 
   // 1) ENVIRONMENT — git + a new-enough Node, before anything is created.
   console.log(`[praxeum] checking git and Node (>= ${MIN_NODE_MAJOR}) ...`);
