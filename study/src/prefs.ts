@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 
 /**
  * Which agent CLI tutors this course, and which editor "edit" opens.
- * Pure UI preference: the buttons only type commands into the PTY, so the
- * chosen command must exist on the user's PATH. Persisted per browser —
- * the repo itself stays agent-agnostic (CLAUDE.md + AGENTS.md carry the
- * protocol for whichever tool the learner runs).
+ * Pure UI preference: agent commands run in the tutor PTY; editor commands run
+ * in an independent local process. Either way the chosen command must exist on
+ * the user's PATH. Persisted per browser — the repo itself stays agent-agnostic
+ * (CLAUDE.md + AGENTS.md carry the protocol for whichever tool the learner runs).
  */
 export interface ToolChoice {
   id: string;

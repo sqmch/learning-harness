@@ -1,15 +1,15 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-// Fonts, bundled offline (no network at runtime). Two families, two roles: Geist
-// Sans for humans (prose and chrome alike) and Geist Mono for data. Geist ships
-// no italics — the browser synthesizes an oblique for prose `em`, which suits the
-// face. Only the weights/subsets actually used are imported — see styles.css.
-import "@fontsource/geist-sans/latin-400.css";
-import "@fontsource/geist-sans/latin-500.css";
-import "@fontsource/geist-sans/latin-600.css";
-import "@fontsource/geist-mono/latin-400.css";
-import "@fontsource/geist-mono/latin-500.css";
-import "@fontsource/geist-mono/latin-600.css";
+// Fonts are bundled offline. Source Sans 3 is the reading/UI face (including
+// real italics); JetBrains Mono is reserved for terminal/code/data. Weight-level
+// CSS includes properly ranged language subsets, preventing fallback mixing.
+import "@fontsource/source-sans-3/400.css";
+import "@fontsource/source-sans-3/400-italic.css";
+import "@fontsource/source-sans-3/500.css";
+import "@fontsource/source-sans-3/600.css";
+import "@fontsource/source-sans-3/600-italic.css";
+import "@fontsource/jetbrains-mono/400.css";
+import "@fontsource/jetbrains-mono/600.css";
 import App from "./App";
 import { migrateLegacyKeys } from "./storage";
 import "./styles.css";
@@ -17,8 +17,22 @@ import "./styles.css";
 // Adopt any cockpit-era ck.* layout keys before App reads study.* (see storage.ts).
 migrateLegacyKeys();
 
-createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-);
+async function mount() {
+  // A webfont swap after xterm has measured its cells creates visible gaps and
+  // collisions. Load every face xterm/prose will request before either mounts.
+  await Promise.all([
+    document.fonts.load('400 16px "Source Sans 3"'),
+    document.fonts.load('italic 400 16px "Source Sans 3"'),
+    document.fonts.load('600 16px "Source Sans 3"'),
+    document.fonts.load('400 14px "JetBrains Mono"'),
+    document.fonts.load('600 14px "JetBrains Mono"'),
+  ]).catch(() => undefined);
+
+  createRoot(document.getElementById("root")!).render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>,
+  );
+}
+
+void mount();

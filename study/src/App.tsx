@@ -29,9 +29,9 @@ export default function App() {
   const [labOpen, setLabOpen] = useState(false);
   const [labTarget, setLabTarget] = useState<{ entryKey: string; moduleId: string } | null>(null);
 
-  // check-run lens: on-demand `npm run check` per module, results kept ONLY here
-  // (ephemeral, keyed by module id). The terminal stays the primary way to run
-  // checks; this is a convenience read-out that never persists anywhere.
+  // Independent check runner: both Run checks buttons use this on-demand
+  // `npm run check` path, so the tutor can keep owning the PTY. Results live
+  // ONLY here (ephemeral, keyed by module id) and never persist anywhere.
   const [checkRuns, setCheckRuns] = useState<Record<string, CheckRunState>>({});
   const runCheck = useCallback(async (moduleId: string) => {
     setCheckRuns((prev) => ({ ...prev, [moduleId]: { phase: "running" } }));
@@ -405,8 +405,9 @@ export default function App() {
         <div className="gutter" onMouseDown={startDrag("term")} />
         <TerminalPane
           ref={termRef}
-          repoRoot={course?.repoRoot ?? ""}
           selectedModuleId={selectedId}
+          checkRunning={selectedId ? checkRuns[selectedId]?.phase === "running" : false}
+          onRunChecks={runCheck}
           welcome={isEmpty}
         />
       </div>

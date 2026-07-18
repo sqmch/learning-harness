@@ -21,6 +21,33 @@ export interface ProcRow {
 
 export type PtyState = "idle" | "agent" | "busy" | "unknown";
 
+// ── detached editor launch ──────────────────────────────────────────────────
+
+/** The editor preference is a local shell command (built-ins are `code`, `zed`,
+ * and `cursor`). Keep it one line and bounded before handing it to a detached
+ * shell; arguments are intentionally allowed so custom choices such as
+ * `code --reuse-window` keep working. */
+export function validEditorCommand(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.trim().length > 0 &&
+    value.length <= 1024 &&
+    !/[\0\r\n]/.test(value)
+  );
+}
+
+/** Append the repo root as one shell-safe argument to a user-configured editor
+ * command. PowerShell and POSIX shells use different single-quote escaping. */
+export function editorLaunchCommand(
+  editorCommand: string,
+  repoRoot: string,
+  platform: NodeJS.Platform,
+): string {
+  const escaped =
+    platform === "win32" ? repoRoot.replace(/'/g, "''") : repoRoot.replace(/'/g, `'"'"'`);
+  return `${editorCommand.trim()} '${escaped}'`;
+}
+
 // ConPTY console hosts appear inside the tree but are not learner programs.
 export const NOISE_STEMS = new Set(["conhost", "openconsole"]);
 

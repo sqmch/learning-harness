@@ -21,11 +21,11 @@ source course completes its final phase.
 - [x] Agent-agnostic protocol entry: `AGENTS.md` points Codex-convention agents at
       `CLAUDE.md`; the study's ⚙ prefs pick the agent (claude/codex/gemini/custom) and
       editor (VS Code/Zed/Cursor/custom) its buttons drive
-- [x] State-aware quick actions: the terminal server classifies the PTY (idle / agent /
-      busy) from its process tree; buttons launch the agent with the opener as an argument,
-      type into a running agent, refuse when the terminal is occupied, and offer
-      "resume session" (`claude --continue`, directory-scoped) when a fresh interrupted
-      conversation exists
+- [x] State-aware tutor actions: the terminal server classifies the PTY (idle / agent /
+      busy) from its process tree; session buttons launch or type safely and offer
+      "resume session" (`claude --continue`, directory-scoped) for a fresh interrupted
+      conversation. Editor and check actions run independently, so a live tutor never
+      blocks the learner's tools
 
 ## v0.x — while the source course runs (continuous)
 

@@ -205,8 +205,8 @@ export function DocPane(props: {
               </span>
             )}
             {/* run-checks lens: quiet instrument, right of the ◇ chips. Hidden
-                entirely when the module has no runnable checks. The terminal
-                stays the primary way to run checks; this just reads the summary. */}
+                entirely when the module has no runnable checks. It shares the
+                independent runner used by the terminal-pane button. */}
             {props.module.hasChecks && (
               <span className="doc-check">
                 <button
@@ -217,7 +217,7 @@ export function DocPane(props: {
                   title={
                     summary || cs?.phase === "error"
                       ? "Run this module's checks again"
-                      : "Run this module's checks once — the terminal remains the full output you read"
+                      : "Run this module's checks in a separate process"
                   }
                 >
                   {checkLabel}

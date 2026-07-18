@@ -8,6 +8,8 @@ import path from "node:path";
 import {
   type ProcRow,
   classifyProcesses,
+  editorLaunchCommand,
+  validEditorCommand,
   tokenStem,
   normalizeStatus,
   hasRunnableCheck,
@@ -19,6 +21,36 @@ import {
   mungeProjectDir,
   resumeFreshness,
 } from "../server/helpers";
+
+// ── detached editor launch ─────────────────────────────────────────────────
+
+describe("validEditorCommand", () => {
+  test("accepts built-in and custom commands with arguments", () => {
+    expect(validEditorCommand("code")).toBe(true);
+    expect(validEditorCommand("code --reuse-window")).toBe(true);
+  });
+
+  test("rejects empty, multiline, NUL-containing, and oversized commands", () => {
+    expect(validEditorCommand("   ")).toBe(false);
+    expect(validEditorCommand("code\nRemove-Item something")).toBe(false);
+    expect(validEditorCommand("code\0bad")).toBe(false);
+    expect(validEditorCommand("x".repeat(1025))).toBe(false);
+  });
+});
+
+describe("editorLaunchCommand", () => {
+  test("quotes a Windows repo path as one PowerShell argument", () => {
+    expect(editorLaunchCommand("code", "C:\\Users\\O'Neil\\my course", "win32")).toBe(
+      "code 'C:\\Users\\O''Neil\\my course'",
+    );
+  });
+
+  test("quotes a POSIX repo path as one shell argument", () => {
+    expect(editorLaunchCommand("code --reuse-window", "/home/o'neil/my course", "linux")).toBe(
+      `code --reuse-window '/home/o'"'"'neil/my course'`,
+    );
+  });
+});
 
 // ── PTY classifier ─────────────────────────────────────────────────────────
 // The failure direction is the whole point: an unreadable or ambiguous tree

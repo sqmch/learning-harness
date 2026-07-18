@@ -148,8 +148,8 @@ export async function fetchFile(path: string): Promise<string> {
 }
 
 // ── check-run lens ──────────────────────────────────────────────────────────
-// A convenience lens over `npm run check` — the terminal stays the primary way
-// to run checks. The result is EPHEMERAL: it lives in React state, is never
+// An independent `npm run check` path used by both UI buttons, even while the
+// tutor owns the PTY. The result is EPHEMERAL: it lives in React state, is never
 // persisted, and is gone on reload.
 export type CheckOutcome = "pass" | "fail" | "crash" | "no-checks";
 export interface CheckSummary {

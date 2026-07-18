@@ -2,15 +2,17 @@ import http from "node:http";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { execFile } from "node:child_process";
+import { execFile, spawn as spawnProcess } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import express from "express";
 import { WebSocketServer } from "ws";
-import { spawn } from "@lydell/node-pty";
+import { spawn as spawnPty } from "@lydell/node-pty";
 import {
   type ProcRow,
   type PtyState,
   classifyProcesses,
+  editorLaunchCommand,
+  validEditorCommand,
   mergeModule,
   hasRunnableCheck,
   guardRepoFile,
@@ -46,6 +48,7 @@ const REPO_ROOT = resolveRepoRoot();
 const PORT = Number(process.env.PORT || 7331);
 
 const app = express();
+app.use(express.json({ limit: "4kb" }));
 
 // ---------- course: manifests merged with progress ----------
 app.get("/api/course", (_req, res) => {
@@ -120,13 +123,63 @@ app.get("/api/file", (req, res) => {
   res.json({ path: rel, content: fs.readFileSync(abs, "utf8") });
 });
 
+// ---------- editor: launch independently of the tutor PTY ------------------
+// The editor is an external tool, not a terminal action. Launch it in a
+// detached process so an active Claude/Codex/Gemini session can keep owning the
+// embedded PTY. The server is localhost-only and the command comes from the
+// study's local editor preference; REPO_ROOT is server-owned and shell-quoted.
+app.post("/api/editor", (req, res) => {
+  const command = req.body?.command;
+  if (!validEditorCommand(command)) {
+    res.status(400).json({ error: "invalid editor command" });
+    return;
+  }
+
+  const shell =
+    process.platform === "win32"
+      ? fs.existsSync("C:\\Program Files\\PowerShell\\7\\pwsh.exe")
+        ? "pwsh.exe"
+        : "powershell.exe"
+      : process.env.SHELL || "/bin/sh";
+  const launch = editorLaunchCommand(command, REPO_ROOT, process.platform);
+  const args =
+    process.platform === "win32"
+      ? ["-NoProfile", "-NonInteractive", "-Command", launch]
+      : ["-lc", launch];
+
+  try {
+    const child = spawnProcess(shell, args, {
+      cwd: REPO_ROOT,
+      detached: true,
+      stdio: "ignore",
+      windowsHide: true,
+    });
+    let replied = false;
+    child.once("error", (err) => {
+      console.warn(`[study] could not launch editor: ${err}`);
+      if (!replied) {
+        replied = true;
+        res.status(500).json({ error: "could not launch the configured editor" });
+      }
+    });
+    child.once("spawn", () => {
+      child.unref();
+      if (!replied) {
+        replied = true;
+        res.status(202).json({ ok: true });
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 // ---------- check-run lens: spawn a module's checks, parse the summary --------
-// A convenience lens, NOT a source of truth: the terminal remains the primary
-// way to run checks (the learner reads the real output there). This spawns the
-// module's own `npm run check` in its scaffold, 120s cap, and parses vitest's
-// summary into { total, passed, failed, failedNames?, outcome } for the study to
-// render. It writes NOTHING — the result lives only in the browser's ephemeral
-// React state and is gone on reload.
+// An independent convenience runner, NOT a source of truth: this spawns the
+// module's own `npm run check` outside the tutor PTY, applies a 120s cap, and
+// parses vitest's summary into { total, passed, failed, failedNames?, outcome }
+// for the study to render. It writes NOTHING — the result lives only in the
+// browser's ephemeral React state and is gone on reload.
 //
 // Single-flight: one run at a time per server. A second concurrent request is
 // refused with 409 rather than queued — the study disables the affordance while
@@ -400,7 +453,7 @@ wss.on("connection", (ws) => {
         : "powershell.exe"
       : process.env.SHELL || "bash";
 
-  const pty = spawn(shell, [], {
+  const pty = spawnPty(shell, [], {
     name: "xterm-256color",
     cols: 100,
     rows: 30,

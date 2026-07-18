@@ -14,11 +14,11 @@ import {
 import { useTheme, type Theme } from "../theme";
 
 /**
- * Quick actions are STATE-AWARE: before touching the terminal they ask the
- * server what's running inside the PTY (idle / agent / busy / unknown) and
- * do the only safe thing for that state. The design rule: a wrong guess must
- * degrade to a refusal or an unsubmitted paste — never to keystrokes landing
- * in the wrong program.
+ * Tutor actions are STATE-AWARE: before touching the terminal they ask the
+ * server what's running inside the PTY (idle / agent / busy / unknown). Editor
+ * and check actions run outside the PTY, so they remain available during a
+ * lesson session. A wrong PTY guess must degrade to refusal or an unsubmitted
+ * paste — never to keystrokes landing in the wrong program.
  */
 type PtyState = "idle" | "agent" | "busy" | "unknown";
 
@@ -32,8 +32,9 @@ export interface TerminalHandle {
 export const TerminalPane = forwardRef<
   TerminalHandle,
   {
-    repoRoot: string;
     selectedModuleId: string | null;
+    checkRunning: boolean;
+    onRunChecks: (moduleId: string) => void;
     /** No course in the repo yet — swap module actions for onboarding ones. */
     welcome?: boolean;
   }
@@ -51,8 +52,10 @@ export const TerminalPane = forwardRef<
   useEffect(() => {
     const host = hostRef.current!;
     const term = new Terminal({
-      fontFamily: '"Geist Mono", monospace',
-      fontSize: 13,
+      fontFamily: '"JetBrains Mono", "Cascadia Mono", monospace',
+      fontSize: 14,
+      fontWeight: 400,
+      fontWeightBold: 600,
       cursorBlink: true,
       theme: {
         background: "#101113",
@@ -226,25 +229,21 @@ export const TerminalPane = forwardRef<
   doSessionRef.current = doSession;
   useImperativeHandle(ref, () => ({ startSession: () => void doSessionRef.current() }), []);
 
-  const shellAction = (cmd: string, what: string) =>
-    guarded(async () => {
-      const state = await queryState(agent.command);
-      if (state === "idle") return void type(cmd, true);
-      if (state === "unknown") {
-        type(cmd, false);
-        return notify("couldn't inspect the terminal — press Enter to run it");
+  const openEditor = guarded(async () => {
+    try {
+      const response = await fetch("/api/editor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ command: editor.command }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        notify(body?.error ?? `couldn't open ${editor.label}`);
       }
-      notify(
-        state === "agent"
-          ? `${agent.label} is running — exit it first, or ask it to ${what}`
-          : "terminal is busy — finish or Ctrl+C what's running first",
-      );
-    });
-
-  // forward slashes + `;` chaining work in PowerShell and POSIX shells alike
-  const checksCmd = props.selectedModuleId
-    ? `cd "${props.repoRoot.replace(/\\/g, "/")}/curriculum/${props.selectedModuleId}/scaffold"; npm run check`
-    : null;
+    } catch {
+      notify(`couldn't open ${editor.label}`);
+    }
+  });
 
   return (
     <aside className="termpane">
@@ -279,17 +278,17 @@ export const TerminalPane = forwardRef<
                 {sessionLabel}
               </button>
               <button
-                disabled={!checksCmd || acting}
-                onClick={checksCmd ? shellAction(checksCmd, "run the checks") : undefined}
+                disabled={!props.selectedModuleId || props.checkRunning || acting}
+                onClick={() => props.selectedModuleId && props.onRunChecks(props.selectedModuleId)}
                 title="Run the selected module's checks"
               >
-                run checks
+                {props.checkRunning ? "running…" : "run checks"}
               </button>
             </>
           )}
           <button
             disabled={acting}
-            onClick={shellAction(`${editor.command} "${props.repoRoot}"`, "open the editor")}
+            onClick={openEditor}
             title={`Open the repo in ${editor.label} — your real editor (change editor via ⚙)`}
           >
             edit

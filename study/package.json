@@ -23,8 +23,8 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
-    "@fontsource/geist-mono": "^5.2.8",
-    "@fontsource/geist-sans": "^5.2.5",
+    "@fontsource/jetbrains-mono": "^5.2.8",
+    "@fontsource/source-sans-3": "^5.2.9",
     "@types/express": "^4.17.21",
     "@types/node": "^22.0.0",
     "@types/react": "^18.3.0",
