@@ -2,18 +2,23 @@
 node_modules
 dist
 package-lock.json
+.claude/worktrees/
 
 # Golden test fixtures: their exact byte layout is asserted (quiz.test.mjs round-
 # trips quiz-bank.sample.json against the CLI's own serializer, which formats JSON
 # differently from Prettier). Formatting them would break the tests.
 scripts/test/fixtures/
 
-# Course paths belong to the instance, not the engine. Instances inherit this
-# ignore file through `npm run update`, so the engine must never reach in and
-# reformat a learner's course prose or JSON state.
+# Course prose and tutor-owned state stay untouched by editor formatters. Learner
+# scaffold source is deliberately reopened: formatting whitespace is ordinary
+# editor hygiene, not an agentic coding aid. The engine's bulk format commands use
+# .prettierignore.engine, which still excludes curriculum/ in full.
 COURSE.md
-curriculum/
 tutor/
+curriculum/*
+!curriculum/*/
+curriculum/*/*
+!curriculum/*/scaffold/
 
 # The illustrative example module (docs/example-module/) is course-shaped content,
 # not engine source: its scaffold carries deliberate TODO(you) gaps and its checks

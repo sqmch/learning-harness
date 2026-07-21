@@ -1,0 +1,20 @@
+# Used only by `npm run format` and `npm run format:check`. Keep the engine's
+# bulk formatting boundary separate from the editor-facing .prettierignore:
+# engine maintenance must never rewrite course-owned files.
+node_modules
+dist
+package-lock.json
+.claude/worktrees/
+
+# Golden test fixtures have byte-for-byte assertions.
+scripts/test/fixtures/
+
+# Course-owned paths in a praxeum instance.
+COURSE.md
+curriculum/
+tutor/
+
+# Illustrative course content, not runnable engine source.
+docs/example-module/
+
+# docs/schema/*.json remains formatter-checked engine source.

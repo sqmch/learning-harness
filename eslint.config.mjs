@@ -17,13 +17,15 @@ import prettier from "eslint-config-prettier";
 
 export default tseslint.config(
   {
-    // Build output, vendored deps, and every course path stay unlinted. The
+    // Build output, vendored deps, nested agent worktrees, and every course path
+    // stay unlinted. The
     // illustrative example module (docs/example-module/) is course-shaped content,
     // not engine source — its scaffold ships deliberate TODO(you) gaps — so it's
     // excluded here for the same reason curriculum/ is.
     ignores: [
       "**/dist/**",
       "**/node_modules/**",
+      ".claude/worktrees/**",
       "curriculum/**",
       "tutor/**",
       "docs/example-module/**",
