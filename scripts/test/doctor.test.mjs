@@ -8,6 +8,8 @@ import {
   newestJournalDate,
   newestQuizActivity,
   checkSpine,
+  findMissingProgressModules,
+  findCompletedModulesWithoutQuiz,
 } from "../doctor.mjs";
 
 test("parsePorcelain: modifications, renames, quoted paths, deletes, untracked", () => {
@@ -120,4 +122,31 @@ test("checkSpine: curriculum without COURSE.md fails; both-missing and present a
   // COURSE.md present — spine intact, with or without curriculum/ yet
   assert.equal(checkSpine({ hasCurriculum: true, hasCourse: true }).level, "ok");
   assert.equal(checkSpine({ hasCurriculum: false, hasCourse: true }).level, "ok");
+});
+
+test("findMissingProgressModules: reports filesystem-only modules deterministically", () => {
+  assert.deepEqual(
+    findMissingProgressModules(
+      ["02-effects", "00-orientation", "01-rendering", "02-effects"],
+      ["00-orientation", "02-effects"],
+    ),
+    ["01-rendering"],
+  );
+  assert.deepEqual(findMissingProgressModules([], []), []);
+  assert.deepEqual(findMissingProgressModules(["00-orientation"], ["00-orientation"]), []);
+});
+
+test("findCompletedModulesWithoutQuiz: reports completed modules with no seeded items", () => {
+  assert.deepEqual(
+    findCompletedModulesWithoutQuiz(
+      ["02-effects", "00-orientation", "01-rendering", "02-effects"],
+      ["00-orientation", "01-rendering"],
+    ),
+    ["02-effects"],
+  );
+  assert.deepEqual(findCompletedModulesWithoutQuiz([], []), []);
+  assert.deepEqual(
+    findCompletedModulesWithoutQuiz(["00-orientation"], ["00-orientation", "00-orientation"]),
+    [],
+  );
 });

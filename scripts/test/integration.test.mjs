@@ -25,6 +25,37 @@ function mkInstance(files) {
   }
   return dir;
 }
+function writeInstanceFile(repo, rel, body) {
+  const abs = path.join(repo, rel);
+  fs.mkdirSync(path.dirname(abs), { recursive: true });
+  fs.writeFileSync(abs, typeof body === "string" ? body : `${JSON.stringify(body, null, 2)}\n`);
+}
+function runGit(repo, args, date) {
+  const env = { ...process.env };
+  if (date) {
+    env.GIT_AUTHOR_DATE = date;
+    env.GIT_COMMITTER_DATE = date;
+  }
+  const result = spawnSync("git", ["-C", repo, ...args], { encoding: "utf8", env });
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  return result;
+}
+function commitAll(repo, message, date) {
+  runGit(repo, ["add", "."]);
+  runGit(
+    repo,
+    [
+      "-c",
+      "user.name=Praxeum Test",
+      "-c",
+      "user.email=praxeum-test@example.invalid",
+      "commit",
+      "-m",
+      message,
+    ],
+    date,
+  );
+}
 after(() => {
   for (const d of tempDirs) fs.rmSync(d, { recursive: true, force: true });
 });
@@ -92,13 +123,122 @@ test("doctor CLI: a curriculum/ without COURSE.md fails the spine check; a spine
   const whole = mkInstance({
     "COURSE.md": "# COURSE.md — demo\n\n**Learner profile:** p.\n",
     "curriculum/00-orientation/module.json": { id: "00-orientation" },
-    "tutor/progress.json": { learner, currentModule: null, modules: {} },
+    "tutor/progress.json": {
+      learner,
+      currentModule: "00-orientation",
+      modules: { "00-orientation": { status: "in-progress" } },
+    },
     "tutor/quiz-bank.json": { items: [] },
     "tutor/journal.md": "## 2026-06-02 — Session 1\ncovered the basics\n",
   });
   const good = runCli("doctor.mjs", [whole]);
   assert.equal(good.status, 0, good.stdout + good.stderr);
   assert.match(good.stdout, /✓ spine: COURSE\.md present/);
+});
+
+test("doctor CLI: a curriculum directory missing from progress modules fails persistently", () => {
+  // Regression shape: module generation landed on disk, but its progress key
+  // never did. No quiz activity or dirty files exist for the older checks to see.
+  const repo = mkInstance({
+    "COURSE.md": "# COURSE.md — demo\n",
+    "curriculum/00-orientation/module.json": { id: "00-orientation" },
+    "curriculum/01-rendering/module.json": { id: "01-rendering" },
+    "tutor/progress.json": {
+      learner,
+      currentModule: "00-orientation",
+      modules: { "00-orientation": { status: "in-progress" } },
+    },
+    "tutor/quiz-bank.json": { items: [] },
+    "tutor/journal.md": "## 2026-07-20 — Session 1\nlast closed session\n",
+  });
+  const result = runCli("doctor.mjs", [repo]);
+  assert.equal(result.status, 1, result.stdout + result.stderr);
+  assert.match(
+    result.stdout,
+    /✗ module-coverage: curriculum module directories missing from progress\.json\.modules: "01-rendering"/,
+  );
+});
+
+test("doctor CLI: a completed module with no quiz-bank items is a failed close", () => {
+  const repo = mkInstance({
+    "COURSE.md": "# COURSE.md — demo\n",
+    "curriculum/00-orientation/module.json": { id: "00-orientation" },
+    "tutor/progress.json": {
+      learner,
+      currentModule: "00-orientation",
+      modules: { "00-orientation": { status: "completed" } },
+    },
+    "tutor/quiz-bank.json": { items: [] },
+    "tutor/journal.md": "## 2026-07-20 — Session 1\nmodule marked complete\n",
+  });
+  const result = runCli("doctor.mjs", [repo]);
+  assert.equal(result.status, 1, result.stdout + result.stderr);
+  assert.match(
+    result.stdout,
+    /✗ completed-quiz: completed modules with zero quiz-bank items: "00-orientation"/,
+  );
+});
+
+test("doctor CLI: commits after the last journal warn while recent, fail when stale, and clear on close", () => {
+  const makeTrackedInstance = (date) => {
+    const repo = mkInstance({
+      "COURSE.md": "# COURSE.md — demo\n",
+      "curriculum/00-orientation/module.json": { id: "00-orientation" },
+      "tutor/progress.json": {
+        learner,
+        currentModule: "00-orientation",
+        modules: { "00-orientation": { status: "in-progress" } },
+      },
+      "tutor/quiz-bank.json": { items: [] },
+      "tutor/journal.md": "## 2026-07-20 — Session 1\nclosed session\n",
+    });
+    runGit(repo, ["init"]);
+    commitAll(repo, "closed session", date);
+
+    // Match the real interrupted-generation shape: the new module and its
+    // in-progress state are committed, but quiz and journal are untouched.
+    writeInstanceFile(repo, "curriculum/01-rendering/module.json", { id: "01-rendering" });
+    writeInstanceFile(repo, "tutor/progress.json", {
+      learner,
+      currentModule: "01-rendering",
+      modules: {
+        "00-orientation": { status: "in-progress" },
+        "01-rendering": { status: "in-progress" },
+      },
+    });
+    commitAll(repo, "generated module 01", date);
+    return repo;
+  };
+
+  const recent = makeTrackedInstance();
+  const warning = runCli("doctor.mjs", [recent]);
+  assert.equal(warning.status, 0, warning.stdout + warning.stderr);
+  assert.match(
+    warning.stdout,
+    /⚠ unjournaled-commits: committed course activity is newer than journal commit [0-9a-f]{7}/,
+  );
+
+  writeInstanceFile(
+    recent,
+    "tutor/journal.md",
+    "## 2026-07-20 — Session 1\nclosed session\n\n## 2026-07-21 — Session 2\nmodule generated\n",
+  );
+  commitAll(recent, "close module-generation session");
+  const closed = runCli("doctor.mjs", [recent]);
+  assert.equal(closed.status, 0, closed.stdout + closed.stderr);
+  assert.match(
+    closed.stdout,
+    /✓ unjournaled-commits: no curriculum\/tutor commits after journal commit [0-9a-f]{7}/,
+  );
+
+  const stale = makeTrackedInstance("2000-01-01T00:00:00Z");
+  const failure = runCli("doctor.mjs", [stale]);
+  assert.equal(failure.status, 1, failure.stdout + failure.stderr);
+  assert.match(
+    failure.stdout,
+    /✗ unjournaled-commits: committed course activity older than 12h is newer than journal commit [0-9a-f]{7}/,
+  );
+  assert.match(failure.stdout, /"generated module 01"/);
 });
 
 test("validate CLI: a valid module passes; a corrupted one exits 1", () => {

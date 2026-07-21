@@ -3,7 +3,7 @@
 // and on 2026-07-05 in instance #1 it half-ran: quiz-bank graded, journal never
 // written, progress untouched, nothing committed, and no one noticed for days.
 // This is the mechanical check that prose couldn't be. It is READ-ONLY: it
-// inspects state and shells out to `git status` only to read it, never to write.
+// inspects state and shells out to git only to read it, never to write.
 //
 // Usage:  node scripts/doctor.mjs [repoPath] [--json]
 //   repoPath   an instance to inspect; default walks up from cwd for .git/CLAUDE.md
@@ -81,6 +81,24 @@ export function checkSpine({ hasCurriculum, hasCourse }) {
         "curriculum/ exists but COURSE.md is missing — a course without its spine (onboarding step 3 never completed or the file was lost)",
     };
   return { level: "ok", message: "no COURSE.md and no curriculum/ — not onboarded yet" };
+}
+
+// Every generated module directory must be represented in progress.json. A
+// filesystem-only module is durable evidence that generation was not reconciled
+// into course state, even when the generating session committed its files. Pure
+// over two arrays so the invariant can be tested without a fixture filesystem.
+export function findMissingProgressModules(curriculumModules, progressModules) {
+  const tracked = new Set(progressModules);
+  return [...new Set(curriculumModules)].filter((id) => !tracked.has(id)).sort();
+}
+
+// Completing a module seeds its retrieval questions into quiz-bank.json. A
+// completed module with no bank items is therefore a half-finished close. This
+// is the same set-difference shape as module coverage and stays failed until the
+// missing close step is genuinely reconciled.
+export function findCompletedModulesWithoutQuiz(completedModules, quizModules) {
+  const seeded = new Set(quizModules);
+  return [...new Set(completedModules)].filter((id) => !seeded.has(id)).sort();
 }
 
 // Newest "## YYYY-MM-DD …" heading date in a journal, or null. Tolerant: a
@@ -165,7 +183,76 @@ function main() {
       add("parse", "fail", parseProblems.join("; "));
     }
 
-    // 2) UNCOMMITTED STATE — dirty course files warn; dirty AND stale (>12h) fail,
+    // 2) MODULE COVERAGE — a generated curriculum directory cannot exist only
+    //    on disk; progress.json.modules must carry the matching state key.
+    let curriculumModules = null;
+    try {
+      const curriculumPath = path.join(repoRoot, "curriculum");
+      curriculumModules = fs.existsSync(curriculumPath)
+        ? fs
+            .readdirSync(curriculumPath, { withFileTypes: true })
+            .filter((entry) => entry.isDirectory())
+            .map((entry) => entry.name)
+        : [];
+    } catch (err) {
+      add(
+        "module-coverage",
+        "warn",
+        `could not read curriculum/ (${String(err?.message ?? err)}) — skipping module coverage`,
+      );
+    }
+    if (curriculumModules !== null) {
+      if (!progress.ok) {
+        add("module-coverage", "warn", "skipped — progress.json did not parse");
+      } else {
+        const progressModules = Object.keys(progress.value?.modules ?? {});
+        const missing = findMissingProgressModules(curriculumModules, progressModules);
+        if (missing.length > 0) {
+          add(
+            "module-coverage",
+            "fail",
+            `curriculum module directories missing from progress.json.modules: ${trim(missing.map((id) => `"${id}"`))}`,
+          );
+        } else {
+          add(
+            "module-coverage",
+            "ok",
+            `${curriculumModules.length} curriculum module(s) represented in progress.json.modules`,
+          );
+        }
+      }
+    }
+
+    // 3) COMPLETED QUIZ COVERAGE — completion includes seeding retrieval items.
+    if (!progress.ok || !quizBank.ok) {
+      const unreadable = [!progress.ok && "progress.json", !quizBank.ok && "quiz-bank.json"]
+        .filter(Boolean)
+        .join(" and ");
+      add("completed-quiz", "warn", `skipped — ${unreadable} did not parse`);
+    } else {
+      const completedModules = Object.entries(progress.value?.modules ?? {})
+        .filter(([, state]) => state?.status === "completed" || state?.status === "complete")
+        .map(([id]) => id);
+      const quizModules = (quizBank.value?.items ?? [])
+        .map((item) => item?.module)
+        .filter((id) => typeof id === "string");
+      const missing = findCompletedModulesWithoutQuiz(completedModules, quizModules);
+      if (missing.length > 0) {
+        add(
+          "completed-quiz",
+          "fail",
+          `completed modules with zero quiz-bank items: ${trim(missing.map((id) => `"${id}"`))}`,
+        );
+      } else {
+        add(
+          "completed-quiz",
+          "ok",
+          `${completedModules.length} completed module(s) have quiz-bank items`,
+        );
+      }
+    }
+
+    // 4) UNCOMMITTED STATE — dirty course files warn; dirty AND stale (>12h) fail,
     //    because that is a session whose state was never committed.
     let gitOut = null;
     try {
@@ -218,7 +305,83 @@ function main() {
       }
     }
 
-    // 3) UNJOURNALED ACTIVITY — the newest quiz activity vs the newest journal
+    // 5) UNJOURNALED COMMITS — compare history by ancestry, never by calendar
+    //    dates. Any curriculum/ or tutor/ commit reachable after the newest
+    //    journal commit is session work not covered by an atomic close. Recent
+    //    commits may be a live mid-session checkpoint; stale ones fail.
+    if (gitOut === null) {
+      add(
+        "unjournaled-commits",
+        "warn",
+        "could not inspect git history (not a git repo, or git unavailable) — skipping the committed-session check",
+      );
+    } else {
+      try {
+        const gitOptions = {
+          encoding: "utf8",
+          stdio: ["ignore", "pipe", "ignore"],
+        };
+        const journalCommit = execFileSync(
+          "git",
+          ["-C", repoRoot, "rev-list", "-1", "HEAD", "--", "tutor/journal.md"],
+          gitOptions,
+        ).trim();
+        const range = journalCommit ? `${journalCommit}..HEAD` : "HEAD";
+        const out = execFileSync(
+          "git",
+          ["-C", repoRoot, "log", "--format=%H%x09%ct%x09%s", range, "--", "curriculum", "tutor"],
+          gitOptions,
+        );
+        const commits = out
+          .split(/\r?\n/)
+          .filter(Boolean)
+          .map((line) => {
+            const [hash, seconds, ...subject] = line.split("\t");
+            return { hash, timeMs: Number(seconds) * 1000, subject: subject.join("\t") };
+          });
+
+        if (commits.length === 0) {
+          add(
+            "unjournaled-commits",
+            "ok",
+            journalCommit
+              ? `no curriculum/tutor commits after journal commit ${journalCommit.slice(0, 7)}`
+              : "no committed curriculum/tutor activity yet — nothing to journal",
+          );
+        } else {
+          const now = Date.now();
+          const stale = commits.filter((commit) => (now - commit.timeMs) / 3_600_000 > STALE_HOURS);
+          const shown = (stale.length > 0 ? stale : commits).map((commit) => {
+            const ageH = Math.max(0, (now - commit.timeMs) / 3_600_000);
+            return `${commit.hash.slice(0, 7)} "${commit.subject}" (${ageH.toFixed(0)}h)`;
+          });
+          const baseline = journalCommit
+            ? `journal commit ${journalCommit.slice(0, 7)}`
+            : "any committed journal entry";
+          if (stale.length > 0) {
+            add(
+              "unjournaled-commits",
+              "fail",
+              `committed course activity older than ${STALE_HOURS}h is newer than ${baseline}: ${trim(shown)}`,
+            );
+          } else {
+            add(
+              "unjournaled-commits",
+              "warn",
+              `committed course activity is newer than ${baseline} (session may still be in progress): ${trim(shown)}`,
+            );
+          }
+        }
+      } catch {
+        add(
+          "unjournaled-commits",
+          "warn",
+          "could not inspect git history (repository has no commits, or history is unavailable) — skipping the committed-session check",
+        );
+      }
+    }
+
+    // 6) UNJOURNALED QUIZ ACTIVITY — the newest quiz activity vs the newest journal
     //    entry. Activity newer than the last journal entry means a session touched
     //    the bank but was never journaled (the 2026-07-05 failure exactly). Both
     //    grades (history[]) and reschedules (moves[]) count — a maintenance
@@ -255,7 +418,7 @@ function main() {
       );
     }
 
-    // 4) PROGRESS SYNC — currentModule points at a real module dir; statuses are
+    // 7) PROGRESS SYNC — currentModule points at a real module dir; statuses are
     //    from the known vocabulary ("complete" is the UI's word, tolerated with a warn).
     if (!progress.ok) {
       add("progress-sync", "warn", "skipped — progress.json did not parse");
