@@ -40,27 +40,35 @@
 /* ── hand-authored marks: structure ──
    Fill and stroke colour belong to the owning stylesheet (styles.css for the
    rail's node, state.css for the recall marks). Stroke WIDTH lives here so a
-   node and a recall mark can't drift apart. */
-.node,
-.recall-mark {
+   node and a recall mark can't drift apart.
+
+   Every reset below is wrapped in :where(), which zeroes its specificity. This
+   file loads AFTER both region stylesheets, so a plain `.node-shape { fill:
+   none }` here outranked `.node-shape { fill: var(--bg) }` there on source
+   order alone — the phase-track rule would have shown straight through every
+   incomplete node, and the fix looked like "add a parent selector" rather than
+   "the default was never meant to compete". At specificity 0 these are what
+   they claim to be: defaults a region overrides by simply saying otherwise. */
+:where(.node, .recall-mark) {
   flex: none;
   display: block;
   overflow: visible;
 }
-.node-shape,
-.node-ring,
-.recall-ring {
+:where(.node-shape, .node-ring, .recall-ring) {
   fill: none;
   stroke-width: var(--border);
 }
-.node-check {
+:where(.node-check) {
   fill: none;
+  /* Heavier than --border on purpose: a check knocked out of a filled node has
+     to read at 21px, where a 1.5-unit stroke goes spindly. Same reason the ring
+     is 2 — it is a status signal, not an edge. */
   stroke-width: 2;
 }
-.node-ring {
+:where(.node-ring) {
   stroke-width: 2;
 }
-.recall-fill {
+:where(.recall-fill) {
   stroke: none;
 }
 

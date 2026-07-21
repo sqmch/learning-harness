@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { LabProps } from "../registry";
+import { Icon } from "../../ui/icons";
 
 // ── chunking plumbing (words stand in for tokens, exactly as LESSON 02 §3) ──
 //
@@ -145,7 +146,13 @@ export function ChunkingOverlapLab(props: LabProps) {
               >
                 <span className="clab-bar-label">chunk {ci + 1}</span>
                 <span className="clab-bar-meta">
-                  {c.end - c.start} tok{full ? " · fact ✓" : ""}
+                  {c.end - c.start} tok
+                  {full && (
+                    <>
+                      {" · fact"}
+                      <Icon name="check" size="xs" />
+                    </>
+                  )}
                 </span>
               </div>
             );
@@ -179,8 +186,12 @@ export function ChunkingOverlapLab(props: LabProps) {
               <span>chunk size</span>
               <span className="clab-slider-val">{safeSize} tok</span>
             </span>
+            {/* The visible label carries a live value, so the slider is named
+                explicitly: without this its accessible name folds the readout in
+                and a screen reader says "chunk size 5 tok, 5". */}
             <input
               type="range"
+              aria-label="chunk size"
               min={1}
               max={n}
               value={safeSize}
@@ -194,6 +205,7 @@ export function ChunkingOverlapLab(props: LabProps) {
             </span>
             <input
               type="range"
+              aria-label="overlap"
               min={0}
               max={Math.max(0, safeSize - 1)}
               value={safeOverlap}

@@ -109,11 +109,7 @@ export function ModuleNode(props: {
 }) {
   const { boss, complete, ring, className } = props;
   return (
-    <svg
-      viewBox="0 0 20 20"
-      className={["node", className].filter(Boolean).join(" ")}
-      aria-hidden
-    >
+    <svg viewBox="0 0 20 20" className={["node", className].filter(Boolean).join(" ")} aria-hidden>
       {ring &&
         (boss ? (
           <path d={DIAMOND_RING} className={`node-ring node-ring-${ring}`} />

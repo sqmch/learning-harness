@@ -1,14 +1,21 @@
 import { useMemo } from "react";
 import { type ModuleInfo, type CheckRunState } from "../api";
 import { moduleHasVisuals } from "../lab/registry";
+import { Icon, ModuleNode } from "../ui/icons";
+import { Tooltip } from "../ui/Tooltip";
 
-/** The subtle ring class the current module's node carries from an ephemeral
- *  check run (running / pass / fail / crash). Empty string = no ring. */
-function checkRingClass(state: CheckRunState | undefined): string {
-  if (!state) return "";
-  if (state.phase === "running") return "check-running";
-  if (state.phase === "done" && state.summary) return `check-${state.summary.outcome}`;
-  return ""; // error phase or no summary → no ring
+type NodeRing = "running" | "pass" | "fail" | "crash";
+
+/** The subtle ring the current module's node carries from an ephemeral check
+ *  run. null = no ring — including `no-checks`, which is an outcome the rail
+ *  has nothing to say about. */
+function checkRing(state: CheckRunState | undefined): NodeRing | null {
+  if (!state) return null;
+  if (state.phase === "running") return "running";
+  if (state.phase === "done" && state.summary && state.summary.outcome !== "no-checks") {
+    return state.summary.outcome;
+  }
+  return null; // error phase or no summary → no ring
 }
 
 export function Rail(props: {
@@ -44,7 +51,7 @@ export function Rail(props: {
               const i = index++;
               const isCurrent = m.id === props.currentModule;
               const isSelected = m.id === props.selectedId;
-              const ring = isCurrent ? checkRingClass(props.currentCheck) : "";
+              const ring = isCurrent ? checkRing(props.currentCheck) : null;
               return (
                 <button
                   key={m.id}
@@ -57,22 +64,16 @@ export function Rail(props: {
                   style={{ animationDelay: `${i * 45}ms` }}
                   onClick={() => props.onSelect(m.id)}
                 >
-                  <span
-                    className={`node ${m.bossCheck ? "node-boss" : ""} ${ring}`.trim()}
-                    aria-hidden
-                  >
-                    {m.status === "complete" ? "✓" : ""}
-                  </span>
+                  <ModuleNode boss={m.bossCheck} complete={m.status === "complete"} ring={ring} />
                   <span className="module-meta">
                     <span className="module-title">
                       {m.title}
                       {moduleHasVisuals(m) && (
-                        <span
-                          className="module-viz"
-                          title="has a visualization — see the lesson's ◇ chips"
-                        >
-                          ◇
-                        </span>
+                        <Tooltip content="has a visualization — see the lesson's chips above the reading pane">
+                          <span className="module-viz">
+                            <Icon name="diamond" size="xs" />
+                          </span>
+                        </Tooltip>
                       )}
                     </span>
                     <span className="module-sub">

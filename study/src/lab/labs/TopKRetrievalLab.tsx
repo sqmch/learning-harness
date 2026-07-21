@@ -278,6 +278,7 @@ export function TopKRetrievalLab(props: LabProps) {
             </span>
             <input
               type="range"
+              aria-label="k — chunks retrieved"
               min={1}
               max={corpus.length}
               value={safeK}

@@ -12,6 +12,9 @@ import {
   type ToolChoice,
 } from "../prefs";
 import { useTheme, type Theme } from "../theme";
+import { Icon } from "../ui/icons";
+import { Popover } from "../ui/Popover";
+import { Tooltip } from "../ui/Tooltip";
 
 /**
  * Tutor actions are STATE-AWARE: before touching the terminal they ask the
@@ -251,72 +254,83 @@ export const TerminalPane = forwardRef<
         <span className="term-title">tutor / terminal</span>
         <div className="term-actions">
           {props.welcome ? (
-            <button
-              className="term-primary"
-              disabled={acting}
-              onClick={doSession}
-              title={
+            <Tooltip
+              wide
+              content={
                 resuming
                   ? "A recent conversation exists — resumes it where it left off"
                   : "Starts your agent with the onboarding opener already sent — the interview that builds this repo's course"
               }
             >
-              {sessionLabel}
-            </button>
+              <button className="term-primary" disabled={acting} onClick={doSession}>
+                {sessionLabel}
+              </button>
+            </Tooltip>
           ) : (
             <>
-              <button
-                className="term-primary"
-                disabled={acting}
-                onClick={doSession}
-                title={
+              <Tooltip
+                wide
+                content={
                   resuming
                     ? "A recent conversation exists — resumes it where it left off"
                     : "Starts your agent with the session opener already sent (or types it in, if the tutor is running)"
                 }
               >
-                {sessionLabel}
-              </button>
-              <button
-                disabled={!props.selectedModuleId || props.checkRunning || acting}
-                onClick={() => props.selectedModuleId && props.onRunChecks(props.selectedModuleId)}
-                title="Run the selected module's checks"
-              >
-                {props.checkRunning ? "running…" : "run checks"}
-              </button>
+                <button className="term-primary" disabled={acting} onClick={doSession}>
+                  {sessionLabel}
+                </button>
+              </Tooltip>
+              <Tooltip content="Run the selected module's checks">
+                <button
+                  disabled={!props.selectedModuleId || props.checkRunning || acting}
+                  onClick={() =>
+                    props.selectedModuleId && props.onRunChecks(props.selectedModuleId)
+                  }
+                >
+                  {props.checkRunning ? "running…" : "run checks"}
+                </button>
+              </Tooltip>
             </>
           )}
-          <button
-            disabled={acting}
-            onClick={openEditor}
-            title={`Open the repo in ${editor.label} — your real editor (change editor via ⚙)`}
+          <Tooltip
+            wide
+            content={`Open the repo in ${editor.label} — your real editor (change editor in the preferences below)`}
           >
-            edit
-          </button>
-          <button
-            className={prefsOpen ? "term-gear open" : "term-gear"}
-            onClick={() => setPrefsOpen((o) => !o)}
-            title="Choose your agent and editor"
-            aria-label="terminal preferences"
+            <button disabled={acting} onClick={openEditor}>
+              edit
+            </button>
+          </Tooltip>
+          <Popover
+            open={prefsOpen}
+            onOpenChange={setPrefsOpen}
+            className="term-prefs"
+            tooltip="Choose your agent and editor"
+            trigger={
+              <button
+                className={prefsOpen ? "term-gear open" : "term-gear"}
+                aria-label="terminal preferences"
+              >
+                <Icon name="prefs" size="sm" />
+              </button>
+            }
           >
-            ⚙
-          </button>
+            <PrefsPanel
+              prefs={prefs}
+              setPrefs={setPrefs}
+              theme={theme}
+              setTheme={setTheme}
+              agentLabel={agent.label}
+              onLaunch={doLaunch}
+              launchDisabled={acting}
+            />
+          </Popover>
         </div>
+        {/* the notice dismisses on click, so it IS a button — as a div it was
+            unreachable by keyboard and announced as nothing at all */}
         {notice && (
-          <div className="term-notice" onClick={() => setNotice(null)}>
+          <button type="button" className="term-notice" onClick={() => setNotice(null)}>
             {notice}
-          </div>
-        )}
-        {prefsOpen && (
-          <PrefsPopover
-            prefs={prefs}
-            setPrefs={setPrefs}
-            theme={theme}
-            setTheme={setTheme}
-            agentLabel={agent.label}
-            onLaunch={doLaunch}
-            launchDisabled={acting}
-          />
+          </button>
         )}
       </div>
       <div className="term-host" ref={hostRef} />
@@ -330,7 +344,9 @@ const THEMES: { id: Theme; label: string }[] = [
   { id: "dark", label: "dark" },
 ];
 
-function PrefsPopover(props: {
+/** The preferences panel's contents. The surface around it (portal, dismissal,
+ *  focus return, elevation) belongs to `<Popover>`; this is only the rows. */
+function PrefsPanel(props: {
   prefs: Prefs;
   setPrefs: (p: Prefs) => void;
   theme: Theme;
@@ -374,18 +390,22 @@ function PrefsPopover(props: {
     </div>
   );
   return (
-    <div className="term-prefs">
+    <>
       {row("agent", AGENTS, prefs.agent, prefs.agentCustom, "command, e.g. aider")}
       <div className="term-prefs-launch">
-        <button
-          type="button"
-          className="term-prefs-launch-btn"
-          disabled={launchDisabled}
-          onClick={onLaunch}
-          title={`Launch ${agentLabel} in this repo with nothing typed — a bare prompt to talk to directly (the session button is the usual way in)`}
+        <Tooltip
+          wide
+          content={`Launch ${agentLabel} in this repo with nothing typed — a bare prompt to talk to directly (the session button is the usual way in)`}
         >
-          launch {agentLabel} without a prompt
-        </button>
+          <button
+            type="button"
+            className="term-prefs-launch-btn"
+            disabled={launchDisabled}
+            onClick={onLaunch}
+          >
+            launch {agentLabel} without a prompt
+          </button>
+        </Tooltip>
       </div>
       {row("editor", EDITORS, prefs.editor, prefs.editorCustom, "command, e.g. subl")}
       <div className="term-prefs-theme">
@@ -409,6 +429,6 @@ function PrefsPopover(props: {
         tutor protocol from <code>CLAUDE.md</code>; codex &amp; friends get it via{" "}
         <code>AGENTS.md</code>.
       </p>
-    </div>
+    </>
   );
 }

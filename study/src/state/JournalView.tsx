@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { renderMarkdown } from "../markdown";
 import { parseJournal } from "./parse";
+import { Icon } from "../ui/icons";
 import type { FileState } from "./useRepoFile";
 
 /**
@@ -22,7 +23,9 @@ export function JournalView(props: { raw: string | null; state: FileState }) {
   if (state === "missing" || !raw) {
     return (
       <div className="state-empty">
-        <div className="state-empty-mark">≡</div>
+        <div className="state-empty-mark">
+          <Icon name="record" size="lg" />
+        </div>
         <p>
           No journal yet. The tutor writes a session entry at every close — what was covered, where
           you struggled or shone, and open threads. It's the repo's memory across sessions.
@@ -33,7 +36,9 @@ export function JournalView(props: { raw: string | null; state: FileState }) {
   if (entries.length === 0) {
     return (
       <div className="state-empty">
-        <div className="state-empty-mark">≡</div>
+        <div className="state-empty-mark">
+          <Icon name="record" size="lg" />
+        </div>
         <p>The journal exists but has no dated entries yet.</p>
       </div>
     );

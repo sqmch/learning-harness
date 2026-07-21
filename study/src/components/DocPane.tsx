@@ -3,6 +3,8 @@ import DOMPurify from "dompurify";
 import { fetchFile, type ModuleInfo, type CheckRunState } from "../api";
 import { createMarkdown, escapeHtml } from "../markdown";
 import { buildEntries, visualSrc, type LabEntry } from "../lab/registry";
+import { Icon } from "../ui/icons";
+import { Tooltip } from "../ui/Tooltip";
 
 // The shared study pipeline (highlight + sanitize), plus this pane's own
 // ```visual fence extension — kept on a private instance so `md.use` never
@@ -25,7 +27,9 @@ md.use({
         if (typeof spec.file !== "string") return false;
         const height = Math.max(160, Math.min(900, Number(spec.height) || 420));
         const title = typeof spec.title === "string" ? spec.title : "interactive visual";
-        return `<div class="doc-visual-embed" data-visual-file="${escapeHtml(spec.file)}" data-visual-height="${height}" data-visual-title="${escapeHtml(title)}"></div>`;
+        // `data-visual-label`, not `-title`: the study bans the `title` attribute
+        // outright, and a substring of one reads as a violation to every grep.
+        return `<div class="doc-visual-embed" data-visual-file="${escapeHtml(spec.file)}" data-visual-height="${height}" data-visual-label="${escapeHtml(title)}"></div>`;
       } catch {
         return false; // malformed spec → render as a plain code block, never crash the doc
       }
@@ -62,17 +66,31 @@ export function DocPane(props: {
   const checkRunning = cs?.phase === "running";
   const summary = cs?.phase === "done" ? cs.summary : undefined;
   const failNames = summary?.outcome === "fail" ? (summary.failedNames ?? []) : [];
-  const checkLabel = checkRunning
-    ? "running checks…"
-    : summary?.outcome === "pass"
-      ? `✓ ${summary.passed}/${summary.total}`
-      : summary?.outcome === "fail"
-        ? `✗ ${summary.failed}/${summary.total}`
-        : summary?.outcome === "crash"
-          ? "checks crashed"
-          : summary?.outcome === "no-checks"
-            ? "no checks found"
-            : "▷ run checks";
+  // The label is JSX, not a string: its mark is an icon, and the button is a
+  // flex row so the mark sits on the count's optical centre rather than its
+  // baseline.
+  const checkLabel = checkRunning ? (
+    "running checks…"
+  ) : summary?.outcome === "pass" ? (
+    <>
+      <Icon name="check" size="xs" />
+      {`${summary.passed}/${summary.total}`}
+    </>
+  ) : summary?.outcome === "fail" ? (
+    <>
+      <Icon name="x" size="xs" />
+      {`${summary.failed}/${summary.total}`}
+    </>
+  ) : summary?.outcome === "crash" ? (
+    "checks crashed"
+  ) : summary?.outcome === "no-checks" ? (
+    "no checks found"
+  ) : (
+    <>
+      <Icon name="run" size="xs" />
+      run checks
+    </>
+  );
   const checkClass = checkRunning
     ? "running"
     : summary?.outcome === "pass"
@@ -133,7 +151,7 @@ export function DocPane(props: {
       const iframe = document.createElement("iframe");
       iframe.className = "doc-visual-frame";
       iframe.src = visualSrc(moduleId, ph.dataset.visualFile ?? "");
-      iframe.title = ph.dataset.visualTitle ?? "interactive visual";
+      iframe.title = ph.dataset.visualLabel ?? "interactive visual";
       iframe.setAttribute("sandbox", "allow-scripts");
       iframe.setAttribute("loading", "lazy");
       iframe.style.height = `${ph.dataset.visualHeight ?? 420}px`;
@@ -193,49 +211,59 @@ export function DocPane(props: {
             {visuals.length > 0 && (
               <span className="doc-visual-chips">
                 {visuals.map((e) => (
-                  <button
+                  <Tooltip
                     key={e.key}
-                    className="doc-visual-chip"
-                    onClick={() => props.onOpenVisual(e, props.module!.id)}
-                    title={e.blurb ?? `Open "${e.title}" full-screen in the lab`}
+                    wide
+                    content={e.blurb ?? `Open "${e.title}" full-screen in the lab`}
                   >
-                    ◇ {e.title.toLowerCase()}
-                  </button>
+                    <button
+                      className="doc-visual-chip"
+                      onClick={() => props.onOpenVisual(e, props.module!.id)}
+                    >
+                      <Icon name="diamond" size="xs" />
+                      {e.title.toLowerCase()}
+                    </button>
+                  </Tooltip>
                 ))}
               </span>
             )}
-            {/* run-checks lens: quiet instrument, right of the ◇ chips. Hidden
-                entirely when the module has no runnable checks. It shares the
-                independent runner used by the terminal-pane button. */}
+            {/* run-checks lens: quiet instrument, right of the visual chips.
+                Hidden entirely when the module has no runnable checks. It shares
+                the independent runner used by the terminal-pane button. */}
             {props.module.hasChecks && (
               <span className="doc-check">
-                <button
-                  className={`doc-check-btn is-${checkClass}`}
-                  onClick={() => props.onRunChecks(props.module!.id)}
-                  disabled={checkRunning}
-                  aria-busy={checkRunning}
-                  title={
+                <Tooltip
+                  wide
+                  content={
                     summary || cs?.phase === "error"
                       ? "Run this module's checks again"
                       : "Run this module's checks in a separate process"
                   }
                 >
-                  {checkLabel}
-                </button>
-                {failNames.length > 0 && (
                   <button
-                    className="doc-check-toggle"
-                    onClick={() => setShowFails((v) => !v)}
-                    aria-expanded={showFails}
-                    title={showFails ? "Hide failing tests" : "Show failing tests"}
+                    className={`doc-check-btn is-${checkClass}`}
+                    onClick={() => props.onRunChecks(props.module!.id)}
+                    disabled={checkRunning}
+                    aria-busy={checkRunning}
                   >
-                    {showFails ? "hide" : "which"}
+                    {checkLabel}
                   </button>
+                </Tooltip>
+                {failNames.length > 0 && (
+                  <Tooltip content={showFails ? "Hide failing tests" : "Show failing tests"}>
+                    <button
+                      className="doc-check-toggle"
+                      onClick={() => setShowFails((v) => !v)}
+                      aria-expanded={showFails}
+                    >
+                      {showFails ? "hide" : "which"}
+                    </button>
+                  </Tooltip>
                 )}
                 {checkNote && (
-                  <span className="doc-check-note" title={checkNote}>
-                    {checkNote}
-                  </span>
+                  <Tooltip wide content={checkNote}>
+                    <span className="doc-check-note">{checkNote}</span>
+                  </Tooltip>
                 )}
                 {showFails && failNames.length > 0 && (
                   <ul className="doc-check-fails">
