@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { LabProps } from "../registry";
 import type { RankedItem } from "../../api";
+import { Tooltip } from "../../ui/Tooltip";
 
 // ── the golden-set idea, made kinesthetic ──
 //
@@ -159,6 +160,7 @@ export function PrecisionRecallLab(props: LabProps) {
           </span>
           <input
             type="range"
+            aria-label="cutoff k"
             min={0}
             max={m}
             value={k}
@@ -172,29 +174,32 @@ export function PrecisionRecallLab(props: LabProps) {
             const kind = it.relevant ? (isIn ? "hit" : "miss") : isIn ? "fa" : "cr";
             return (
               <li key={i}>
-                <button
-                  type="button"
-                  className={`prlab-row ${isIn ? "in" : "out"} ${it.relevant ? "rel" : "irr"} ${kind}`}
-                  onClick={() => setCutoff(i + 1)}
-                  title={
+                <Tooltip
+                  content={
                     isIn
                       ? "retrieved — click to move the cutoff here"
                       : "click to retrieve down to here"
                   }
                 >
-                  <span className="prlab-rank">{i + 1}</span>
-                  <span className="prlab-mark" aria-hidden="true" />
-                  <span className="prlab-text">{it.text}</span>
-                  <span className="prlab-tag">
-                    {kind === "hit"
-                      ? "hit"
-                      : kind === "fa"
-                        ? "false alarm"
-                        : kind === "miss"
-                          ? "miss"
-                          : ""}
-                  </span>
-                </button>
+                  <button
+                    type="button"
+                    className={`prlab-row ${isIn ? "in" : "out"} ${it.relevant ? "rel" : "irr"} ${kind}`}
+                    onClick={() => setCutoff(i + 1)}
+                  >
+                    <span className="prlab-rank">{i + 1}</span>
+                    <span className="prlab-mark" aria-hidden="true" />
+                    <span className="prlab-text">{it.text}</span>
+                    <span className="prlab-tag">
+                      {kind === "hit"
+                        ? "hit"
+                        : kind === "fa"
+                          ? "false alarm"
+                          : kind === "miss"
+                            ? "miss"
+                            : ""}
+                    </span>
+                  </button>
+                </Tooltip>
                 {isIn && i === k - 1 && (
                   <div className="prlab-cutline">
                     <span>cutoff · retrieved {k}</span>

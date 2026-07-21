@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ModuleInfo } from "../api";
+import { Icon } from "../ui/icons";
 import { useDialogFocus } from "../useDialog";
 import { buildEntries, configFor, defaultEntryKey, type LabEntry } from "./registry";
 import "./lab.css";
@@ -10,7 +11,7 @@ export function LabOverlay(props: {
   modules: ModuleInfo[];
   currentModule: string | null;
   /**
-   * Set when the overlay was opened from a specific place (a lesson's ◇ chip):
+   * Set when the overlay was opened from a specific place (a lesson's lab chip):
    * which entry to show, and which module's lab.json to feed it.
    */
   target: { entryKey: string; moduleId: string } | null;
@@ -70,7 +71,8 @@ export function LabOverlay(props: {
     >
       <header className="lab-topbar">
         <div className="lab-wordmark">
-          <span className="lab-mark">◇</span> lab
+          <Icon name="diamond" size="sm" className="lab-mark" />
+          lab
           <span className="lab-sub">/ visual intuition, wired to the course</span>
         </div>
         <button className="lab-close" onClick={onClose}>
@@ -114,7 +116,12 @@ export function LabOverlay(props: {
             <active.stock.component config={config} moduleId={moduleId} />
           ) : active?.kind === "html" && active.src ? (
             // sandbox: scripts yes, same-origin no — the visual runs isolated,
-            // and the serving endpoint's CSP blocks all network access
+            // and the serving endpoint's CSP blocks all network access.
+            // The `title` below is the frame's ACCESSIBLE NAME, not a tooltip:
+            // it is what a screen reader announces on landing in the visual, and
+            // jsx-a11y/iframe-has-title accepts no substitute (aria-label does
+            // not satisfy it). UI.md bans `title` standing in for a tooltip —
+            // this is the one place in the study where it isn't one.
             <iframe
               className="lab-iframe"
               key={active.key /* force a fresh document per visual */}
@@ -124,7 +131,7 @@ export function LabOverlay(props: {
             />
           ) : (
             <div className="lab-placeholder">
-              <div className="lab-placeholder-mark">◇</div>
+              <Icon name="diamond" size="lg" className="lab-placeholder-mark" />
               <h2>Nothing to visualize yet</h2>
               <p>
                 Visuals arrive with modules: the tutor adds them where a concept is better seen than

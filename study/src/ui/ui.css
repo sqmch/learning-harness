@@ -1,0 +1,166 @@
+/* ── shared UI primitives ──────────────────────────────────────────────────
+   Structure only: sizing, geometry, and the two portalled surfaces. Anything
+   thematic about a mark (what colour a completed node fills, what a wrong
+   recall reads as) stays in the stylesheet that owns that region, so the rail
+   and the record keep expressing their own state. Loaded once from main.tsx —
+   it is one document, so the labs and overlays inherit it too. */
+
+/* ── icons ── */
+.icon {
+  flex: none;
+  display: block;
+  stroke: currentColor;
+  /* lucide sets width/height as presentation attributes; CSS outranks them, so
+     the size token is the single source of truth. */
+}
+.icon-xs {
+  width: var(--icon-xs);
+  height: var(--icon-xs);
+}
+.icon-sm {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+}
+.icon-md {
+  width: var(--icon-md);
+  height: var(--icon-md);
+}
+.icon-lg {
+  width: var(--icon-lg);
+  height: var(--icon-lg);
+}
+
+/* An icon sitting beside text in a control: the flexbox gap does the spacing,
+   and this keeps the pair centred on the text's optical centre rather than its
+   baseline — the thing a glyph in a text node could never do. */
+.icon-inline {
+  align-self: center;
+}
+
+/* ── hand-authored marks: structure ──
+   Fill and stroke colour belong to the owning stylesheet (styles.css for the
+   rail's node, state.css for the recall marks). Stroke WIDTH lives here so a
+   node and a recall mark can't drift apart.
+
+   Every reset below is wrapped in :where(), which zeroes its specificity. This
+   file loads AFTER both region stylesheets, so a plain `.node-shape { fill:
+   none }` here outranked `.node-shape { fill: var(--bg) }` there on source
+   order alone — the phase-track rule would have shown straight through every
+   incomplete node, and the fix looked like "add a parent selector" rather than
+   "the default was never meant to compete". At specificity 0 these are what
+   they claim to be: defaults a region overrides by simply saying otherwise. */
+:where(.node, .recall-mark) {
+  flex: none;
+  display: block;
+  overflow: visible;
+}
+:where(.node-shape, .node-ring, .recall-ring) {
+  fill: none;
+  stroke-width: var(--border);
+}
+:where(.node-check) {
+  fill: none;
+  /* Heavier than --border on purpose: a check knocked out of a filled node has
+     to read at 21px, where a 1.5-unit stroke goes spindly. Same reason the ring
+     is 2 — it is a status signal, not an edge. */
+  stroke-width: 2;
+}
+:where(.node-ring) {
+  stroke-width: 2;
+}
+:where(.recall-fill) {
+  stroke: none;
+}
+
+/* ── tooltip ──
+   z-index clears the overlays (200) with room to spare; Radix portals to the
+   end of <body>, so this only has to beat the app's own stacking, never fight
+   an ancestor's overflow. */
+.tip {
+  z-index: 400;
+  max-width: 260px;
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-hair) solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  box-shadow: var(--elev-popover);
+  /* Long explanatory tips read as prose, not as a label. */
+  text-wrap: pretty;
+  animation: tip-in var(--dur-fast) var(--ease);
+}
+.tip-wide {
+  max-width: 360px;
+}
+.tip code {
+  font-family: var(--mono);
+  font-size: 0.94em;
+  color: var(--hi);
+}
+.tip kbd {
+  font-family: var(--mono);
+  font-size: 0.9em;
+  padding: 0 var(--space-0-5);
+  border: var(--border-hair) solid var(--line);
+  border-radius: var(--radius-xs);
+  color: var(--ink-dim);
+}
+.tip-arrow {
+  fill: var(--bg-panel);
+  stroke: var(--line);
+  stroke-width: var(--border-hair);
+}
+
+/* The re-host for a disabled control (see Tooltip.tsx): it must occupy exactly
+   the control's box so layout is untouched, and show the disabled cursor since
+   the button underneath can no longer set it. */
+.tooltip-disabled-host {
+  display: inline-flex;
+  cursor: not-allowed;
+}
+.tooltip-disabled-host:focus-visible {
+  outline: var(--border) solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes tip-in {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+}
+
+/* ── popover ── */
+.pop {
+  z-index: 300;
+  border: var(--border-hair) solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: var(--text-md);
+  box-shadow: var(--elev-popover);
+  animation: pop-in var(--dur-fast) var(--ease);
+}
+.pop:focus-visible,
+.pop:focus {
+  outline: none;
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tip,
+  .pop {
+    animation: none;
+  }
+}

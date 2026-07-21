@@ -10,6 +10,8 @@ import {
   type ProgressFile,
   type RawModuleProgress,
 } from "./parse";
+import { Icon } from "../ui/icons";
+import { Tooltip } from "../ui/Tooltip";
 import type { FileState } from "./useRepoFile";
 
 const STATUS_WORD: Record<string, string> = {
@@ -32,22 +34,20 @@ function DurationCell({ duration }: { duration: Row["duration"] }) {
   const { days, ongoing } = duration;
   const n = days === 1 ? "1 day" : `${days} days`;
   return (
-    <span
-      className={ongoing ? "pm-ongoing" : ""}
-      title={ongoing ? "elapsed since start" : "start → completion"}
-    >
-      {days === 0 ? (ongoing ? "today" : "same day") : n}
-      {ongoing ? " ongoing" : ""}
-    </span>
+    <Tooltip content={ongoing ? "elapsed since start" : "start → completion"}>
+      <span className={ongoing ? "pm-ongoing" : ""}>
+        {days === 0 ? (ongoing ? "today" : "same day") : n}
+        {ongoing ? " ongoing" : ""}
+      </span>
+    </Tooltip>
   );
 }
 
 function HintPips({ hints }: { hints: boolean[] }) {
   const used = hints.filter(Boolean).length;
   return (
-    <span
-      className="hint-pips"
-      title={
+    <Tooltip
+      content={
         used === 0
           ? "no hints used"
           : `used ${hints
@@ -56,12 +56,14 @@ function HintPips({ hints }: { hints: boolean[] }) {
               .join(", ")}`
       }
     >
-      {hints.map((on, i) => (
-        <span key={i} className={`hint-pip ${on ? "on" : ""}`}>
-          {i + 1}
-        </span>
-      ))}
-    </span>
+      <span className="hint-pips">
+        {hints.map((on, i) => (
+          <span key={i} className={`hint-pip ${on ? "on" : ""}`}>
+            {i + 1}
+          </span>
+        ))}
+      </span>
+    </Tooltip>
   );
 }
 
@@ -134,7 +136,9 @@ export function ProgressView(props: {
   if (modules.length === 0) {
     return (
       <div className="state-empty">
-        <div className="state-empty-mark">≡</div>
+        <div className="state-empty-mark">
+          <Icon name="record" size="lg" />
+        </div>
         <p>No modules yet — progress appears once the course has its first module.</p>
       </div>
     );
@@ -184,16 +188,18 @@ export function ProgressView(props: {
             <span className="pm-stat-label">check attempts</span>
           </div>
           {paceTarget && (
-            <div
-              className="pm-stat pm-stat-pace"
-              title="Estimated hours of completed modules ÷ calendar weeks since start, against the learner's stated pace. A throughput estimate, not measured time."
+            <Tooltip
+              wide
+              content="Estimated hours of completed modules ÷ calendar weeks since start, against the learner's stated pace. A throughput estimate, not measured time."
             >
-              <span className="pm-stat-n">
-                {throughput != null ? `~${throughput.toFixed(1)}` : "—"}
-                <span className="pm-stat-of"> / {paceTarget}</span>
-              </span>
-              <span className="pm-stat-label">pace · h/wk of material vs target</span>
-            </div>
+              <div className="pm-stat pm-stat-pace">
+                <span className="pm-stat-n">
+                  {throughput != null ? `~${throughput.toFixed(1)}` : "—"}
+                  <span className="pm-stat-of"> / {paceTarget}</span>
+                </span>
+                <span className="pm-stat-label">pace · h/wk of material vs target</span>
+              </div>
+            </Tooltip>
           )}
         </div>
 
@@ -217,10 +223,15 @@ export function ProgressView(props: {
                     <span className="pm-mod-id">{r.m.id}</span>
                     <span className="pm-mod-title">
                       {r.m.title}
+                      {/* the filled diamond is the only place the row says
+                          "boss-check", so the mark carries its own label rather
+                          than leaning on the tip a pointer alone can reach */}
                       {r.m.bossCheck && (
-                        <span className="pm-boss" title="phase boss-check">
-                          ◆
-                        </span>
+                        <Tooltip content="phase boss-check">
+                          <span className="pm-boss">
+                            <Icon name="diamond" filled size="xs" label="phase boss-check" />
+                          </span>
+                        </Tooltip>
                       )}
                     </span>
                   </span>
@@ -240,14 +251,15 @@ export function ProgressView(props: {
                   </span>
                   <span className="pm-col-notes">
                     {r.notes ? (
-                      <button
-                        className="pm-notes-toggle"
-                        onClick={() => toggle(r.m.id)}
-                        aria-expanded={isOpen}
-                        title="tutor notes — calibration, struggles, open threads"
-                      >
-                        {isOpen ? "hide notes" : "notes"}
-                      </button>
+                      <Tooltip content="tutor notes — calibration, struggles, open threads">
+                        <button
+                          className="pm-notes-toggle"
+                          onClick={() => toggle(r.m.id)}
+                          aria-expanded={isOpen}
+                        >
+                          {isOpen ? "hide notes" : "notes"}
+                        </button>
+                      </Tooltip>
                     ) : null}
                   </span>
                 </div>

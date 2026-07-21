@@ -12,6 +12,7 @@ import js from "@eslint/js";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 import reactHooks from "eslint-plugin-react-hooks";
+import jsxA11y from "eslint-plugin-jsx-a11y";
 import prettier from "eslint-config-prettier";
 
 export default tseslint.config(
@@ -51,11 +52,22 @@ export default tseslint.config(
   {
     // The study app. typescript-eslint's recommended set turns off the core
     // rules TypeScript makes redundant (e.g. no-undef); react-hooks catches the
-    // dependency-array and rules-of-hooks mistakes the lab components can hit.
+    // dependency-array and rules-of-hooks mistakes the lab components can hit;
+    // jsx-a11y holds the line on the accessibility work already done by hand
+    // (the overlays' dialog semantics, the focus trap, aria-pressed on toggles)
+    // so the next component can't quietly skip it.
     files: ["study/**/*.{ts,tsx}"],
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
-    plugins: { "react-hooks": reactHooks },
-    rules: { ...reactHooks.configs.recommended.rules },
+    plugins: { "react-hooks": reactHooks, "jsx-a11y": jsxA11y },
+    rules: {
+      ...reactHooks.configs.recommended.rules,
+      ...jsxA11y.flatConfigs.recommended.rules,
+      // The study is a keyboard-and-pointer desktop app: every interactive
+      // surface is a real <button>, and the pane gutters carry explicit
+      // separator semantics, so the escape hatches these rules exist for
+      // aren't used here. Left ON deliberately — if one ever fires, it's
+      // found something real rather than a false positive to silence.
+    },
     languageOptions: {
       globals: { ...globals.browser, ...globals.node },
     },

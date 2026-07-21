@@ -17,10 +17,13 @@ import { buildEntries, type LabEntry } from "./lab/registry";
 import { StateOverlay, type StateTab } from "./state/StateOverlay";
 import { dueItems, parseQuizBank, todayISO, type QuizBank } from "./state/parse";
 import { readNum, readStr, writeStr } from "./storage";
+import { Icon, type IconName } from "./ui/icons";
+import { Tooltip } from "./ui/Tooltip";
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const MIN_DOC = 380; // reading-pane width floor, incl. the two 5px gutters
-const DOCTOR_GLYPH: Record<string, string> = { ok: "✓", warn: "⚠", fail: "✗" };
+const GUTTER_STEP = 16; // one arrow press on a focused gutter
+const DOCTOR_ICON: Record<string, IconName> = { ok: "check", warn: "warn", fail: "x" };
 
 export default function App() {
   const [course, setCourse] = useState<Course | null>(null);
@@ -152,19 +155,26 @@ export default function App() {
   }, [loadQuiz]);
 
   // ── pane resizing ──
+  // One source of truth for the clamps: the drag path and the gutters' arrow
+  // keys must agree, or a keyboard resize could park a pane somewhere a drag
+  // can never reach. The upper bound caps against the window so neither pane
+  // can crush the reading pane.
+  const paneBounds = useCallback(
+    (which: "rail" | "term") =>
+      which === "rail"
+        ? { lo: 220, hi: Math.min(460, window.innerWidth - termWRef.current - MIN_DOC) }
+        : { lo: 320, hi: Math.min(940, window.innerWidth - railWRef.current - MIN_DOC) },
+    [],
+  );
+
   useEffect(() => {
     const move = (e: MouseEvent) => {
       const d = drag.current;
       if (!d) return;
       const dx = e.clientX - d.startX;
-      // cap against the window so a drag can never crush the reading pane
-      if (d.which === "rail") {
-        const max = Math.min(460, window.innerWidth - termWRef.current - MIN_DOC);
-        setRailW(clamp(d.startW + dx, 220, max));
-      } else {
-        const max = Math.min(940, window.innerWidth - railWRef.current - MIN_DOC);
-        setTermW(clamp(d.startW - dx, 320, max));
-      }
+      const { lo, hi } = paneBounds(d.which);
+      if (d.which === "rail") setRailW(clamp(d.startW + dx, lo, hi));
+      else setTermW(clamp(d.startW - dx, lo, hi));
     };
     const up = () => {
       if (!drag.current) return;
@@ -177,7 +187,7 @@ export default function App() {
       window.removeEventListener("mousemove", move);
       window.removeEventListener("mouseup", up);
     };
-  }, []);
+  }, [paneBounds]);
 
   useEffect(() => writeStr("study.railW", String(railW)), [railW]);
   useEffect(() => writeStr("study.termW", String(termW)), [termW]);
@@ -202,6 +212,43 @@ export default function App() {
     document.body.classList.add("dragging");
     e.preventDefault();
   };
+
+  // A gutter is a real widget, not decoration: arrows nudge it, Home/End run it
+  // to the clamps. The keys follow the GUTTER's travel rather than the pane's,
+  // so ← always moves the divider left — shrinking whatever sits to its left —
+  // exactly as dragging it there would.
+  const onGutterKey = (which: "rail" | "term") => (e: React.KeyboardEvent) => {
+    const left = e.key === "ArrowLeft";
+    if (!left && !["ArrowRight", "Home", "End"].includes(e.key)) return;
+    e.preventDefault();
+    const { lo, hi } = paneBounds(which);
+    const current = which === "rail" ? railW : termW;
+    const step = (left ? -GUTTER_STEP : GUTTER_STEP) * (which === "rail" ? 1 : -1);
+    const next = e.key === "Home" ? lo : e.key === "End" ? hi : clamp(current + step, lo, hi);
+    if (which === "rail") setRailW(next);
+    else setTermW(next);
+  };
+
+  const gutter = (which: "rail" | "term", label: string) => (
+    // jsx-a11y reads `separator` as structure, so a focusable one trips both
+    // rules below. ARIA says the opposite: a separator that takes focus IS a
+    // widget (the window-splitter pattern), and aria-valuenow — which it
+    // carries — is only meaningful on that widget. Deliberate, and narrow.
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+    <div
+      className="gutter"
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={label}
+      aria-valuenow={Math.round(which === "rail" ? railW : termW)}
+      aria-valuemin={paneBounds(which).lo}
+      aria-valuemax={paneBounds(which).hi}
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+      tabIndex={0}
+      onMouseDown={startDrag(which)}
+      onKeyDown={onGutterKey(which)}
+    />
+  );
 
   const selected = useMemo(
     () => course?.modules.find((m) => m.id === selectedId) ?? null,
@@ -276,54 +323,63 @@ export default function App() {
           {/* the two overlay launchers, grouped; the meter sits apart (below) */}
           <div className="launchers">
             {total > 0 && (
-              <button
-                className={dueCount > 0 ? "state-launch has-due" : "state-launch"}
-                // the "N due" count lives ON this button now: when something's
-                // due it deep-links to the quiz tab, otherwise it just opens the
-                // record on whichever tab was last shown
-                onClick={() => (dueCount > 0 ? openState("quiz") : setStateOpen(true))}
-                title={
+              <Tooltip
+                wide
+                content={
                   dueCount > 0
                     ? `${dueCount} quiz item${dueCount === 1 ? "" : "s"} due for recall — open your record's quiz queue`
                     : "Open your record — the quiz bank, journal, and progress the tutor keeps in this repo"
                 }
               >
-                <span className="state-launch-mark">≡</span> record
-                {dueCount > 0 && (
-                  <span className="state-launch-due">
-                    · <span className="state-launch-due-n">{dueCount}</span> due
-                  </span>
-                )}
-              </button>
+                <button
+                  className={dueCount > 0 ? "state-launch has-due" : "state-launch"}
+                  // the "N due" count lives ON this button now: when something's
+                  // due it deep-links to the quiz tab, otherwise it just opens the
+                  // record on whichever tab was last shown
+                  onClick={() => (dueCount > 0 ? openState("quiz") : setStateOpen(true))}
+                >
+                  <Icon name="record" size="xs" className="state-launch-mark" />
+                  record
+                  {dueCount > 0 && (
+                    <span className="state-launch-due">
+                      · <span className="state-launch-due-n">{dueCount}</span> due
+                    </span>
+                  )}
+                </button>
+              </Tooltip>
             )}
             {labEntries.length > 0 && (
-              <button
-                className="lab-launch"
-                onClick={() => {
-                  setLabTarget(null);
-                  setLabOpen(true);
-                }}
-                title="Open the lab — this course's interactive visualizations"
-              >
-                <span className="lab-launch-mark">◇</span> lab
-              </button>
+              <Tooltip wide content="Open the lab — this course's interactive visualizations">
+                <button
+                  className="lab-launch"
+                  onClick={() => {
+                    setLabTarget(null);
+                    setLabOpen(true);
+                  }}
+                >
+                  <Icon name="diamond" size="xs" className="lab-launch-mark" />
+                  lab
+                </button>
+              </Tooltip>
             )}
           </div>
           {total > 0 && (
-            <div className="meter" title={`${done} of ${total} modules complete`}>
-              <div className="meter-track">
-                <div
-                  className="meter-fill"
-                  style={{ width: total ? `${(done / total) * 100}%` : "0%" }}
-                />
+            <Tooltip content={`${done} of ${total} modules complete`}>
+              <div className="meter">
+                <div className="meter-track">
+                  <div
+                    className="meter-fill"
+                    style={{ width: total ? `${(done / total) * 100}%` : "0%" }}
+                  />
+                </div>
+                <span className="meter-label">
+                  <span className="meter-count">
+                    {done}/{total}
+                  </span>{" "}
+                  modules
+                </span>
               </div>
-              <span className="meter-label">
-                <span className="meter-count">
-                  {done}/{total}
-                </span>{" "}
-                modules
-              </span>
-            </div>
+            </Tooltip>
           )}
         </div>
       </header>
@@ -331,17 +387,21 @@ export default function App() {
       {showDoctor && (
         <div className="doctor-banner">
           <div className="doctor-banner-bar">
-            <span className="doctor-banner-glyph">⚠</span>
-            <span className="doctor-banner-msg" title={doctorSummary}>
-              {doctorSummary}
-            </span>
-            <button
-              className="doctor-banner-action"
-              onClick={() => termRef.current?.startSession()}
-              title="Open a session that reconciles this — the same opener as the terminal's session button"
+            <Icon name="warn" size="sm" className="doctor-banner-glyph" />
+            <Tooltip wide content={doctorSummary}>
+              <span className="doctor-banner-msg">{doctorSummary}</span>
+            </Tooltip>
+            <Tooltip
+              wide
+              content="Open a session that reconciles this — the same opener as the terminal's session button"
             >
-              start session
-            </button>
+              <button
+                className="doctor-banner-action"
+                onClick={() => termRef.current?.startSession()}
+              >
+                start session
+              </button>
+            </Tooltip>
             {doctor && doctor.results.length > 0 && (
               <button
                 className="doctor-banner-toggle"
@@ -351,20 +411,25 @@ export default function App() {
                 {doctorDetails ? "hide" : "details"}
               </button>
             )}
-            <button
-              className="doctor-banner-dismiss"
-              onClick={() => setDoctorDismissed(true)}
-              aria-label="dismiss until reload"
-              title="Dismiss until reload"
-            >
-              ×
-            </button>
+            <Tooltip content="Dismiss until reload">
+              <button
+                className="doctor-banner-dismiss"
+                onClick={() => setDoctorDismissed(true)}
+                aria-label="dismiss until reload"
+              >
+                <Icon name="x" size="sm" />
+              </button>
+            </Tooltip>
           </div>
           {doctorDetails && doctor && (
             <ul className="doctor-banner-list">
               {doctor.results.map((r) => (
                 <li key={r.id} className={`doctor-line doctor-line-${r.level}`}>
-                  <span className="doctor-line-glyph">{DOCTOR_GLYPH[r.level] ?? "•"}</span>
+                  <span className="doctor-line-glyph">
+                    {/* a level the doctor grows later gets a neutral dot rather
+                        than a status mark it hasn't earned */}
+                    {DOCTOR_ICON[r.level] ? <Icon name={DOCTOR_ICON[r.level]} size="sm" /> : "·"}
+                  </span>
                   <span className="doctor-line-id">{r.id}</span>
                   <span className="doctor-line-msg">{r.message}</span>
                 </li>
@@ -393,7 +458,7 @@ export default function App() {
               onSelect={setSelectedId}
               currentCheck={currentModule ? checkRuns[currentModule] : undefined}
             />
-            <div className="gutter" onMouseDown={startDrag("rail")} />
+            {gutter("rail", "resize the course track")}
             <DocPane
               module={selected}
               onOpenVisual={openLab}
@@ -402,7 +467,7 @@ export default function App() {
             />
           </>
         )}
-        <div className="gutter" onMouseDown={startDrag("term")} />
+        {gutter("term", "resize the terminal")}
         <TerminalPane
           ref={termRef}
           selectedModuleId={selectedId}

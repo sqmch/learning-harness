@@ -11,8 +11,10 @@ import "@fontsource/source-sans-3/600-italic.css";
 import "@fontsource/jetbrains-mono/400.css";
 import "@fontsource/jetbrains-mono/600.css";
 import App from "./App";
+import { TooltipProvider } from "./ui/Tooltip";
 import { migrateLegacyKeys } from "./storage";
 import "./styles.css";
+import "./ui/ui.css";
 
 // Adopt any cockpit-era ck.* layout keys before App reads study.* (see storage.ts).
 migrateLegacyKeys();
@@ -30,7 +32,9 @@ async function mount() {
 
   createRoot(document.getElementById("root")!).render(
     <React.StrictMode>
-      <App />
+      <TooltipProvider>
+        <App />
+      </TooltipProvider>
     </React.StrictMode>,
   );
 }

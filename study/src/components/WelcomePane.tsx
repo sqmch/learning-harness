@@ -1,3 +1,6 @@
+import { Icon } from "../ui/icons";
+import { Tooltip } from "../ui/Tooltip";
+
 /**
  * First-contact pane: shown in place of the rail + doc pane when the served
  * repo holds no course yet. The terminal stays mounted to the right — the
@@ -7,7 +10,7 @@ export function WelcomePane(props: { repoRoot: string }) {
   return (
     <section className="welcome">
       <div className="welcome-inner">
-        <div className="welcome-mark">◇</div>
+        <Icon name="diamond" size="lg" className="welcome-mark" />
         <h1>No course lives here yet.</h1>
         <p className="welcome-sub">
           Serving <code>{props.repoRoot}</code> — a blank harness, waiting for its course.
@@ -17,7 +20,13 @@ export function WelcomePane(props: { repoRoot: string }) {
           <li>
             Click <span className="welcome-btn-ref">new course</span> — it starts your tutor in the
             terminal on the right with the opener already sent (claude by default; pick codex or
-            another agent via <span className="welcome-btn-ref">⚙</span>).
+            another agent via{" "}
+            <Tooltip content="the terminal's preferences — agent, editor, and theme">
+              <span className="welcome-btn-ref">
+                <Icon name="prefs" size="xs" label="terminal preferences" />
+              </span>
+            </Tooltip>
+            ).
           </li>
           <li>
             <b>The interview begins.</b> Topic, goals, background, hours per week — then the tutor

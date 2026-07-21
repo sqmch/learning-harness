@@ -6,6 +6,7 @@ import { useRepoFile } from "./useRepoFile";
 import { QuizView } from "./QuizView";
 import { JournalView } from "./JournalView";
 import { ProgressView } from "./ProgressView";
+import { Icon } from "../ui/icons";
 import "./state.css";
 
 export type StateTab = "quiz" | "journal" | "progress";
@@ -75,7 +76,7 @@ export function StateOverlay(props: {
     >
       <header className="state-topbar">
         <div className="state-wordmark">
-          <span className="state-mark">≡</span> record
+          <Icon name="record" size="sm" className="state-mark icon-inline" /> record
           <span className="state-sub">/ quiz · journal · progress</span>
         </div>
         <button className="state-close" onClick={onClose}>

@@ -138,6 +138,86 @@
   }
 }
 
+/* ── the spatial scale — theme-independent, so it lives outside the palettes ──
+   The colour layer above was systematised from the start; geometry was not, and
+   an audit found 821 raw px literals against 3 spatial tokens: 27 distinct font
+   sizes on a 0.5px drift ladder (10, 10.5, 11, 11.5 …), every integer radius
+   from 2 to 10, and both 99px and 999px doing "pill". Values a step apart are
+   indistinguishable on screen but drift apart over time, and that drift is
+   exactly what reads as "roughness in the details" while the whole still looks
+   composed.
+
+   These steps are DERIVED from what the design already used — the biggest
+   cluster in each band became the step — so the sweep was mostly lossless
+   rather than a re-design. Rule for new work: pick a step. If nothing fits,
+   the scale is wrong and gains a step; a one-off literal is a bug unless a
+   comment says why (optical alignment against a specific line box is the one
+   honest reason, e.g. .node's margin-top). */
+:root {
+  /* spacing — 4px rhythm with half-steps where the chrome is genuinely tight */
+  --space-px: 1px;
+  --space-0-5: 2px;
+  --space-1: 4px;
+  --space-1-5: 6px;
+  --space-2: 8px;
+  --space-2-5: 10px;
+  --space-3: 12px;
+  --space-3-5: 14px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* radii — four steps and a pill, replacing every integer from 2 to 10 */
+  --radius-xs: 3px; /* inline code, tiny marks */
+  --radius-sm: 5px; /* buttons, chips, inputs */
+  --radius-md: 8px; /* cards, panels, popovers */
+  --radius-lg: 12px; /* overlay surfaces */
+  --radius-pill: 999px;
+
+  /* type — nine steps replacing 27 sizes. Named by rank, annotated by role;
+     --text-lg keeps 13.5px exactly because the rail's optical alignment is
+     computed against that line box. */
+  --text-2xs: 9px; /* axis ticks, superscript marks */
+  --text-xs: 10.5px; /* kickers, uppercase micro-labels */
+  --text-sm: 11px; /* meta lines, chips, secondary text */
+  --text-md: 12px; /* chrome default: buttons, tabs, terminal chrome */
+  --text-lg: 13.5px; /* UI titles — module title, panel headings */
+  --text-xl: 15px; /* reading prose */
+  --text-2xl: 17px; /* section headings */
+  --text-3xl: 21px; /* overlay titles */
+  --text-4xl: 26px; /* lab display numerals */
+  --text-5xl: 30px; /* the opening line of a page — .doc h1, .welcome h1 */
+
+  --leading-tight: 1.25; /* headings, single-line chrome */
+  --leading-snug: 1.35; /* the rail's title line box (see .node) */
+  --leading-normal: 1.5; /* dense body */
+  --leading-read: 1.65; /* the reading surface */
+
+  /* icons — the optical grid. Sized in these steps, never in raw px, so a
+     14px icon is the same 14px everywhere it appears. */
+  --icon-xs: 12px;
+  --icon-sm: 14px;
+  --icon-md: 16px;
+  --icon-lg: 20px;
+
+  /* strokes — hair for rules and dividers, base for anything that reads as an
+     edge the eye should land on (node borders, focus rings, active tabs) */
+  --border-hair: 1px;
+  --border: 1.5px;
+
+  /* motion — two durations and one curve; reduced-motion is handled globally */
+  --dur-fast: 120ms;
+  --dur-slow: 200ms;
+  --ease: cubic-bezier(0.32, 0.08, 0.24, 1);
+
+  /* elevation — pairs with --shadow/--shadow-soft from the palettes */
+  --elev-popover: 0 6px 20px -4px var(--shadow);
+  --elev-overlay: 0 18px 48px -12px var(--shadow);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -172,8 +252,8 @@ pre,
    keeps specificity at zero so component styling is untouched. Reduced motion is
    honoured globally — the study's animation is all ornamental. */
 :where(a, button, input, select, textarea, [tabindex], summary):focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
+  outline: var(--border) solid var(--focus);
+  outline-offset: var(--space-0-5);
 }
 :where(button):focus:not(:focus-visible) {
   outline: none;
@@ -190,7 +270,12 @@ pre,
   }
 }
 
-/* ── shell ────────────────────────────────────────────────────────────────*/
+/* ── shell ────────────────────────────────────────────────────────────────
+   One convention holds for everything below: measures ABOVE the spatial
+   scale's top step (--space-10, 40px) stay literal. Bar heights, page gutters,
+   and panel widths are one-off dimensions rather than the chrome's 4px rhythm,
+   and snapping a 48px reading gutter down to 40 would be a re-design, not a
+   tidy-up. Everything inside the scale's range is a token. */
 
 .shell {
   height: 100%;
@@ -202,7 +287,7 @@ pre,
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
+  padding: 0 var(--space-5);
   height: 52px;
   border-bottom: 1px solid var(--line);
   background: var(--bg);
@@ -213,7 +298,7 @@ pre,
 .wordmark {
   font-family: var(--sans);
   font-weight: 600;
-  font-size: 15px;
+  font-size: var(--text-xl);
   letter-spacing: -0.01em;
   color: var(--hi);
   white-space: nowrap;
@@ -223,9 +308,9 @@ pre,
 }
 .wordmark-sub {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--text-xs);
   color: var(--ink-faint);
-  margin-left: 9px;
+  margin-left: var(--space-2);
   letter-spacing: 0.06em;
   font-weight: 400;
 }
@@ -236,32 +321,38 @@ pre,
 .topbar-right {
   display: flex;
   align-items: center;
-  gap: 22px;
+  gap: var(--space-5);
 }
 .launchers {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
-/* shared instrument-button base: label in sans, quiet until hovered/focused */
+/* shared instrument-button base: label in sans, quiet until hovered/focused.
+   inline-flex because the leading mark is a drawn icon now — a block-level SVG
+   in an inline row would drop the label onto a line of its own — and the flex
+   gap replaces the mark's old margin plus the space that followed it. */
 .lab-launch,
 .state-launch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
   font-family: var(--sans);
-  font-size: 12px;
+  font-size: var(--text-md);
   font-weight: 500;
   letter-spacing: 0.005em;
   color: var(--ink-dim);
   background: transparent;
   border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-3);
   white-space: nowrap;
   cursor: pointer;
   transition:
-    color 140ms,
-    border-color 140ms,
-    background 140ms;
+    color var(--dur-fast),
+    border-color var(--dur-fast),
+    background var(--dur-fast);
 }
 .lab-launch:hover,
 .state-launch:hover {
@@ -272,7 +363,6 @@ pre,
 .lab-launch-mark,
 .state-launch-mark {
   color: var(--ink-faint);
-  margin-right: 4px;
 }
 .lab-launch:hover .lab-launch-mark,
 .state-launch:hover .state-launch-mark {
@@ -287,7 +377,6 @@ pre,
   border-color: var(--ink-faint);
 }
 .state-launch-due {
-  margin-left: 6px;
   color: var(--ink-dim);
 }
 .state-launch-due-n {
@@ -299,31 +388,33 @@ pre,
 .meter {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2-5);
 }
 .meter-track {
   width: 132px;
-  height: 4px;
+  height: var(--space-1);
   background: var(--line);
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   overflow: hidden;
 }
 .meter-fill {
   height: 100%;
   background: var(--accent);
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
+  /* off the motion scale on purpose: this is a value CHANGING rather than a
+     control answering a hover, and at --dur-slow the bar reads as a jump */
   transition: width 500ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .meter-label {
   font-family: var(--sans);
-  font-size: 11.5px;
+  font-size: var(--text-sm);
   color: var(--ink-dim);
   letter-spacing: 0.005em;
   white-space: nowrap;
 }
 .meter-count {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--ink);
 }
 /* narrow windows: drop the meter's track (the count keeps the signal), then the
@@ -338,7 +429,7 @@ pre,
     display: none;
   }
   .topbar-right {
-    gap: 14px;
+    gap: var(--space-3-5);
   }
 }
 
@@ -355,16 +446,14 @@ pre,
 .doctor-banner-bar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 20px;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-5);
   font-family: var(--sans);
-  font-size: 12.5px;
+  font-size: var(--text-md);
   color: var(--ink);
 }
 .doctor-banner-glyph {
-  flex: none;
   color: var(--warn);
-  font-size: 13px;
 }
 .doctor-banner-msg {
   flex: 1;
@@ -377,20 +466,20 @@ pre,
 .doctor-banner-action {
   flex: none;
   font-family: var(--sans);
-  font-size: 12px;
+  font-size: var(--text-md);
   font-weight: 500;
   letter-spacing: 0.005em;
   color: var(--ink-dim);
   background: transparent;
   border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-3);
   white-space: nowrap;
   cursor: pointer;
   transition:
-    color 140ms,
-    border-color 140ms,
-    background 140ms;
+    color var(--dur-fast),
+    border-color var(--dur-fast),
+    background var(--dur-fast);
 }
 .doctor-banner-action:hover {
   color: var(--hi);
@@ -405,16 +494,16 @@ pre,
   background: transparent;
   border: none;
   cursor: pointer;
-  padding: 3px 4px;
-  transition: color 140ms;
+  padding: var(--space-0-5) var(--space-1);
+  transition: color var(--dur-fast);
 }
 .doctor-banner-toggle {
-  font-size: 11.5px;
+  font-size: var(--text-sm);
   letter-spacing: 0.01em;
 }
 .doctor-banner-dismiss {
-  font-size: 16px;
-  line-height: 1;
+  display: flex;
+  align-items: center;
 }
 .doctor-banner-toggle:hover,
 .doctor-banner-dismiss:hover {
@@ -424,22 +513,27 @@ pre,
 .doctor-banner-list {
   list-style: none;
   margin: 0;
-  padding: 4px 20px 10px;
+  padding: var(--space-1) var(--space-5) var(--space-2-5);
   border-top: 1px solid var(--line-soft);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
 }
 .doctor-line {
   display: grid;
-  grid-template-columns: 14px 108px 1fr;
-  gap: 10px;
-  font-size: 11.5px;
-  line-height: 1.5;
+  grid-template-columns: var(--icon-sm) 108px 1fr;
+  gap: var(--space-2-5);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
   color: var(--ink-dim);
 }
+/* one line box tall, so the mark rides the FIRST line of a message that wrapped
+   instead of centring itself against the whole paragraph */
 .doctor-line-glyph {
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(var(--text-sm) * var(--leading-normal));
   color: var(--ink-faint);
 }
 .doctor-line-id {
@@ -480,8 +574,9 @@ pre,
   cursor: col-resize;
   position: relative;
   z-index: 10;
-  margin: 0 -3px; /* widen the hit area without widening the track */
-  padding: 0 3px;
+  /* widen the hit area without widening the track */
+  margin: 0 calc(var(--space-0-5) * -1);
+  padding: 0 var(--space-0-5);
 }
 .gutter::after {
   content: "";
@@ -491,10 +586,20 @@ pre,
   left: 50%;
   width: 1px;
   background: transparent;
-  transition: background 120ms;
+  transition: background var(--dur-fast);
 }
 .gutter:hover::after {
   background: color-mix(in srgb, var(--accent) 60%, var(--line));
+}
+/* Keyboard focus lights the track itself. The gutter is a full-height 9px
+   strip, so the global focus outline would draw a tall stray box around the
+   whole seam rather than pointing at the handle the arrow keys now move. */
+.gutter:focus-visible {
+  outline: none;
+}
+.gutter:focus-visible::after {
+  width: var(--border);
+  background: var(--focus);
 }
 body.dragging {
   cursor: col-resize;
@@ -513,39 +618,39 @@ body.dragging .docpane {
 .rail {
   border-right: 1px solid var(--line);
   overflow-y: auto;
-  padding: 22px 14px 20px 18px;
+  padding: var(--space-5) var(--space-3-5) var(--space-5) var(--space-4);
   background: var(--bg);
 }
 
 .rail-heading {
   font-family: var(--sans);
-  font-size: 10.5px;
+  font-size: var(--text-xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.14em;
   color: var(--ink-dim);
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
 }
 
 .phase {
-  margin-bottom: 26px;
+  margin-bottom: var(--space-6);
 }
 
 .phase-label {
   font-family: var(--sans);
-  font-size: 12px;
+  font-size: var(--text-md);
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--ink);
-  margin-bottom: 9px;
+  margin-bottom: var(--space-2);
   display: flex;
   align-items: baseline;
-  gap: 9px;
+  gap: var(--space-2);
 }
 .phase-num {
   font-family: var(--mono);
   color: var(--ink-faint);
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 500;
 }
 
@@ -553,19 +658,21 @@ body.dragging .docpane {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  padding-left: 4px;
+  gap: var(--space-px);
+  padding-left: var(--space-1);
 }
 .phase-track::before {
   content: "";
   position: absolute;
-  /* centered on the node glyphs: a row's content box starts at
+  /* centered on the node marks: a row's content box starts at
      phase-track padding (4px) + row border (1px) + row padding-left (8px) = 13px,
-     and the node is 15px wide, so its center sits at 13 + 7.5 = 20.5px from the
-     track's left edge. A 1px line at left:20 spans 20–21px → center 20.5px. */
-  left: 20px;
-  top: 17px;
-  bottom: 17px;
+     and the node's box is 21px wide, so its center sits at 13 + 10.5 = 23.5px
+     from the track's left edge. A 1px line at left:23 spans 23–24px → center
+     23.5px. (That the node's box is odd-sized is what puts the center on a half
+     pixel and keeps this line crisp — see .node.) */
+  left: 23px;
+  top: var(--space-4);
+  bottom: var(--space-4);
   width: 1px;
   background: var(--line-soft);
 }
@@ -573,20 +680,24 @@ body.dragging .docpane {
 .module-row {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  /* 8px rather than the old 12px: the node's mark is drawn inside a slightly
+     larger SVG box, so ~3px of that gap now lives inside the node itself */
+  gap: var(--space-2);
   background: none;
   border: 1px solid transparent;
-  border-radius: 7px;
-  padding: 8px 10px 8px 8px;
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-2-5) var(--space-2) var(--space-2);
   cursor: pointer;
   text-align: left;
   color: inherit;
   font: inherit;
   position: relative;
+  /* 360ms and a per-row stagger: the rail's entrance is choreography, not a
+     control answering an interaction, so it sits off the two-step motion scale */
   animation: rise 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
   transition:
-    background 140ms,
-    border-color 140ms;
+    background var(--dur-fast),
+    border-color var(--dur-fast);
 }
 .module-row:hover {
   background: var(--bg-raised);
@@ -599,7 +710,7 @@ body.dragging .docpane {
 @keyframes rise {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(var(--space-1-5));
   }
   to {
     opacity: 1;
@@ -607,76 +718,86 @@ body.dragging .docpane {
   }
 }
 
+/* ── the module node ───────────────────────────────────────────────────────
+   Drawn as an SVG (ui/icons.tsx), not typeset: the boss-check node used to be a
+   box rotated 45°, which rotated the ✓ inside it too. Geometry lives there;
+   every paint stays here, so the rail keeps expressing status through the same
+   selectors it always used. */
 .node {
-  flex: none;
-  width: 15px;
-  height: 15px;
+  /* 21px is not an icon step, and shouldn't be: the SVG's 20-unit box draws its
+     circle 13.5 units across, so 21px reproduces the ~15px mark the rail had as
+     a bordered box. Odd on purpose — that puts the node's center on a half
+     pixel, which is what lets the phase-track's 1px line stay crisp. */
+  width: 21px;
+  height: 21px;
   /* title line box is 13.5px × 1.35 ≈ 18px tall → its center sits ~9px down;
-     the node's center lands at 2 + 7.5 = 9.5px, optically level with it */
-  margin-top: 2px;
-  border-radius: 50%;
-  border: 1.5px solid var(--ink-faint);
-  background: var(--bg);
+     the node's center lands at -1.5 + 10.5 = 9px, optically level with it */
+  margin-top: -1.5px;
   z-index: 1;
-  font-size: 9px;
-  line-height: 12px;
-  text-align: center;
-  color: var(--bg-deep);
-  font-family: var(--mono);
 }
-.status-complete .node {
-  background: var(--ink);
-  border-color: var(--ink);
+/* Filled, not transparent: the phase-track's line runs behind the node. */
+.node-shape {
+  fill: var(--bg);
+  stroke: var(--ink-faint);
 }
-.status-in-progress .node {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+.status-complete .node-shape {
+  fill: var(--ink);
+  stroke: var(--ink);
 }
-.node-boss {
-  border-radius: 3px;
-  transform: rotate(45deg);
+/* the check is knocked out of the filled shape */
+.node-check {
+  stroke: var(--bg-deep);
+}
+.status-in-progress .node-shape {
+  stroke: var(--accent);
+  /* the halo box-shadow used to give it. A shadow on the SVG would ring the
+     node's square BOX; this one follows whichever outline was drawn. */
+  filter: drop-shadow(0 0 var(--space-0-5) color-mix(in srgb, var(--accent) 45%, transparent));
 }
 
 /* ── ephemeral check-run ring on the CURRENT module's node ──────────────────
    The rail borrows the run-checks lens's state: a subtle tinted ring that shows
    only on the current module, only after a run this session, and is gone on
-   reload. Declared after the status rules so it wins the shared box-shadow when
-   the current module is also in-progress. The static ring is the reduced-motion
-   fallback for the running pulse. */
-.node.check-running {
-  box-shadow: 0 0 0 3px var(--node-glow);
+   reload. It is a path inside the SVG now, riding the node's real outline, so
+   it no longer has to out-specify the in-progress halo for a shared box-shadow.
+   The static ring is the reduced-motion fallback for the running pulse. */
+.node-ring-running {
+  stroke: var(--node-glow);
+  /* a breathing loop, not a transition — off the two-step motion scale */
   animation: nodepulse 1.5s ease-in-out infinite;
 }
-.node.check-pass {
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ok) 60%, transparent);
+.node-ring-pass {
+  stroke: color-mix(in srgb, var(--ok) 60%, transparent);
 }
-.node.check-fail {
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--bad) 65%, transparent);
+.node-ring-fail {
+  stroke: color-mix(in srgb, var(--bad) 65%, transparent);
 }
-.node.check-crash {
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--warn) 60%, transparent);
+.node-ring-crash {
+  stroke: color-mix(in srgb, var(--warn) 60%, transparent);
 }
+/* stroke-width is in the SVG's user units, so these are the same 2px→4px swell
+   the box-shadow spread used to animate */
 @keyframes nodepulse {
   0%,
   100% {
-    box-shadow: 0 0 0 2px var(--node-glow);
+    stroke-width: 2;
   }
   50% {
-    box-shadow: 0 0 0 4px var(--node-glow);
+    stroke-width: 4;
   }
 }
 
 .module-meta {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--space-0-5);
   min-width: 0;
 }
 .module-title {
   font-family: var(--sans);
   font-weight: 500;
-  font-size: 13.5px;
-  line-height: 1.35;
+  font-size: var(--text-lg);
+  line-height: var(--leading-snug);
   color: var(--ink);
 }
 .status-not-started .module-title {
@@ -684,7 +805,7 @@ body.dragging .docpane {
 }
 .module-sub {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--text-xs);
   color: var(--ink-dim);
   letter-spacing: 0.01em;
 }
@@ -694,12 +815,12 @@ body.dragging .docpane {
 
 .rail-foot {
   font-family: var(--sans);
-  font-size: 11.5px;
-  line-height: 1.6;
+  font-size: var(--text-sm);
+  line-height: var(--leading-read);
   color: var(--ink-dim);
   border-top: 1px solid var(--line-soft);
-  padding-top: 14px;
-  margin-top: 6px;
+  padding-top: var(--space-3-5);
+  margin-top: var(--space-1-5);
 }
 
 /* ── document pane — the reading surface (sans, larger + relaxed) ──────────*/
@@ -725,25 +846,25 @@ body.dragging .docpane {
   background: color-mix(in srgb, var(--bg-read) 90%, transparent);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line-soft);
-  padding: 12px 48px 0;
+  padding: var(--space-3) 48px 0;
 }
 
 .doc-kicker {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--text-sm);
   letter-spacing: 0.03em;
   color: var(--ink-dim);
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .status-chip {
   font-family: var(--sans);
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 600;
-  padding: 2px 9px;
-  border-radius: 99px;
+  padding: var(--space-0-5) var(--space-2);
+  border-radius: var(--radius-pill);
   border: 1px solid var(--line);
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -760,56 +881,59 @@ body.dragging .docpane {
 
 .doc-tabs {
   display: flex;
-  gap: 22px;
-  margin-top: 10px;
+  gap: var(--space-5);
+  margin-top: var(--space-2-5);
   align-items: center;
 }
 
-/* right-side instruments on the tab row: the ◇ visual chips and the run-checks
+/* right-side instruments on the tab row: the visual chips and the run-checks
    lens, grouped and pushed right together */
 .doc-instruments {
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--space-3-5);
   flex-wrap: wrap;
   justify-content: flex-end;
-  padding-bottom: 6px;
+  padding-bottom: var(--space-1-5);
 }
 
-/* ◇ chips: this module's visuals, opening the lab directly on the right one */
+/* the chips: this module's visuals, opening the lab directly on the right one */
 .doc-visual-chips {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 /* ── run-checks lens ───────────────────────────────────────────────────────
-   A quiet instrument: idle "▷ run checks", a running state, then a "✓ 10/10" /
-   "✗ 4/10" read-out with failing names one click away. Ephemeral — the terminal
-   remains the real output. Status tint rides only on the glyph+count, never the
+   A quiet instrument: an idle "run checks", a running state, then a "10/10" /
+   "4/10" read-out with failing names one click away. Ephemeral — the terminal
+   remains the real output. Status tint rides only on the mark+count, never the
    chrome, matching the app's restraint. */
 .doc-check {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .doc-check-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
   font-family: var(--sans);
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 500;
   letter-spacing: 0.005em;
   color: var(--ink-dim);
   background: transparent;
   border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 3px 12px;
+  border-radius: var(--radius-pill);
+  padding: var(--space-0-5) var(--space-3);
   cursor: pointer;
   white-space: nowrap;
   transition:
-    color 140ms,
-    border-color 140ms,
-    background 140ms;
+    color var(--dur-fast),
+    border-color var(--dur-fast),
+    background var(--dur-fast);
 }
 .doc-check-btn:hover:not(:disabled) {
   color: var(--hi);
@@ -838,15 +962,15 @@ body.dragging .docpane {
 
 .doc-check-toggle {
   font-family: var(--sans);
-  font-size: 10.5px;
+  font-size: var(--text-xs);
   font-weight: 500;
   letter-spacing: 0.02em;
   color: var(--ink-faint);
   background: transparent;
   border: none;
-  padding: 2px 2px;
+  padding: var(--space-0-5);
   cursor: pointer;
-  transition: color 140ms;
+  transition: color var(--dur-fast);
 }
 .doc-check-toggle:hover {
   color: var(--ink);
@@ -856,7 +980,7 @@ body.dragging .docpane {
    keep the row honest, full text on hover */
 .doc-check-note {
   font-family: var(--sans);
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--ink-dim);
   max-width: 30ch;
   overflow: hidden;
@@ -867,11 +991,11 @@ body.dragging .docpane {
 /* failing test names, one click away — a small panel below the button */
 .doc-check-fails {
   position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% + var(--space-1-5));
   right: 0;
   z-index: 8;
   margin: 0;
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
   list-style: none;
   min-width: 220px;
   max-width: 420px;
@@ -879,15 +1003,15 @@ body.dragging .docpane {
   overflow-y: auto;
   background: var(--bg-panel);
   border: 1px solid var(--line);
-  border-radius: 8px;
-  box-shadow: 0 10px 28px var(--shadow);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elev-popover);
   font-family: var(--mono);
-  font-size: 11px;
-  line-height: 1.5;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
   color: var(--ink);
 }
 .doc-check-fails li {
-  padding: 2px 0;
+  padding: var(--space-0-5) 0;
   overflow-wrap: anywhere;
 }
 .doc-check-fails li::before {
@@ -895,19 +1019,22 @@ body.dragging .docpane {
   color: var(--bad);
 }
 .doc-visual-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
   font-family: var(--sans);
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 500;
   letter-spacing: 0.005em;
   color: var(--ink-dim);
   background: transparent;
   border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 3px 11px;
+  border-radius: var(--radius-pill);
+  padding: var(--space-0-5) var(--space-2-5);
   cursor: pointer;
   transition:
-    color 140ms,
-    border-color 140ms;
+    color var(--dur-fast),
+    border-color var(--dur-fast);
   white-space: nowrap;
 }
 .doc-visual-chip:hover {
@@ -917,34 +1044,38 @@ body.dragging .docpane {
 
 /* in-lesson ```visual embeds */
 .doc-visual-embed {
-  margin: 22px 0;
+  margin: var(--space-5) 0;
 }
 .doc-visual-frame {
   display: block;
   width: 100%;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--bg-deep);
 }
 
+/* the rail's "has a visualization" mark, inline after a module title that may
+   wrap — so an inline-flex box, centred on the title's x-height rather than
+   hung off its baseline */
 .module-viz {
-  margin-left: 7px;
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: var(--space-1-5);
   color: var(--ink-faint);
-  font-size: 10px;
 }
 .doc-tab {
   background: none;
   border: none;
-  padding: 6px 0 10px;
+  padding: var(--space-1-5) 0 var(--space-2-5);
   font-family: var(--sans);
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 600;
   letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--ink-dim);
   cursor: pointer;
   position: relative;
-  transition: color 140ms;
+  transition: color var(--dur-fast);
 }
 .doc-tab:hover {
   color: var(--ink);
@@ -958,30 +1089,31 @@ body.dragging .docpane {
   left: 0;
   right: 0;
   bottom: -1px;
-  height: 2px;
+  height: var(--border);
   background: var(--accent);
 }
 
 .doc-state {
   padding: 56px 48px;
   font-family: var(--sans);
-  font-size: 14px;
+  font-size: var(--text-lg);
   color: var(--ink-dim);
 }
 
 /* the reading face is the same sans as the chrome, set apart by size + leading:
-   15.5px / 1.72 here vs 11–13.5px and ~1.4 leading on instruments. That size gap
-   (plus the normal 400 weight against the chrome's 500–600) is what makes this
-   read as "prose" and the rest as "panel", now that both share one typeface. */
+   --text-xl / --leading-read here vs 10.5–13.5px and ~1.35 leading on
+   instruments. That size gap (plus the normal 400 weight against the chrome's
+   500–600) is what makes this read as "prose" and the rest as "panel", now that
+   both share one typeface. */
 .doc {
   max-width: 116ch;
   margin: 0 auto;
-  padding: 40px 48px 128px;
+  padding: var(--space-10) 48px 128px;
   font-family: var(--sans);
-  font-size: 15.5px;
-  line-height: 1.72;
+  font-size: var(--text-xl);
+  line-height: var(--leading-read);
   color: var(--ink);
-  animation: fadein 250ms ease both;
+  animation: fadein var(--dur-slow) ease both;
 }
 /* two-tier measure: prose reads at a book width (~72ch); code and tables break
    out to the wider track for scanning */
@@ -992,11 +1124,11 @@ body.dragging .docpane {
 /* a narrow reading pane keeps its measure by giving up gutter first */
 @container (max-width: 720px) {
   .doc-header {
-    padding-left: 26px;
-    padding-right: 26px;
+    padding-left: var(--space-6);
+    padding-right: var(--space-6);
   }
   .doc {
-    padding: 32px 26px 96px;
+    padding: var(--space-8) var(--space-6) 96px;
   }
 }
 @keyframes fadein {
@@ -1013,26 +1145,26 @@ body.dragging .docpane {
 }
 .doc h1 {
   font-weight: 600;
-  font-size: 30px;
-  line-height: 1.22;
-  margin: 8px 0 22px;
+  font-size: var(--text-5xl);
+  line-height: var(--leading-tight);
+  margin: var(--space-2) 0 var(--space-5);
   letter-spacing: -0.02em;
 }
 .doc h2 {
   font-weight: 600;
-  font-size: 21px;
-  line-height: 1.3;
-  margin: 44px 0 12px;
+  font-size: var(--text-3xl);
+  line-height: var(--leading-tight);
+  margin: var(--space-10) 0 var(--space-3);
   letter-spacing: -0.015em;
 }
 .doc h3 {
   font-weight: 600;
-  font-size: 17px;
-  margin: 30px 0 8px;
+  font-size: var(--text-2xl);
+  margin: var(--space-7) 0 var(--space-2);
   color: var(--ink);
 }
 .doc p {
-  margin: 0 0 16px;
+  margin: 0 0 var(--space-4);
 }
 .doc strong {
   font-weight: 600;
@@ -1044,7 +1176,7 @@ body.dragging .docpane {
 .doc a {
   color: var(--ink);
   text-decoration-color: color-mix(in srgb, var(--accent) 55%, transparent);
-  text-underline-offset: 3px;
+  text-underline-offset: var(--space-0-5);
 }
 .doc a:hover {
   color: var(--accent);
@@ -1058,16 +1190,16 @@ body.dragging .docpane {
   font-size: 0.84em;
   background: var(--bg-deep);
   border: 1px solid var(--line-soft);
-  padding: 1px 5px;
-  border-radius: 4px;
+  padding: var(--space-px) var(--space-1);
+  border-radius: var(--radius-xs);
 }
 .doc pre {
   background: var(--bg-deep);
   border: 1px solid var(--line-soft);
-  border-radius: 8px;
-  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  padding: var(--space-3-5) var(--space-4);
   overflow: hidden; /* the CODE scrolls, so the copy button stays anchored */
-  margin: 20px 0;
+  margin: var(--space-5) 0;
   position: relative;
 }
 .doc pre code {
@@ -1076,33 +1208,33 @@ body.dragging .docpane {
   background: none;
   border: none;
   padding: 0;
-  font-size: 12.5px;
-  line-height: 1.65;
+  font-size: var(--text-md);
+  line-height: var(--leading-read);
   color: var(--ink);
 }
 .doc pre code::-webkit-scrollbar {
-  height: 8px;
+  height: var(--space-2);
 }
 
 .copy-btn {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: var(--space-2);
+  right: var(--space-2);
   font-family: var(--sans);
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 500;
   letter-spacing: 0.03em;
   text-transform: uppercase;
   color: var(--ink-dim);
   background: var(--bg-panel);
   border: 1px solid var(--line);
-  border-radius: 4px;
-  padding: 3px 8px;
+  border-radius: var(--radius-xs);
+  padding: var(--space-0-5) var(--space-2);
   cursor: pointer;
   opacity: 0;
   transition:
-    opacity 140ms,
-    color 140ms;
+    opacity var(--dur-fast),
+    color var(--dur-fast);
 }
 .doc pre:hover .copy-btn,
 .copy-btn:focus-visible {
@@ -1163,49 +1295,49 @@ body.dragging .docpane {
 }
 
 .doc blockquote {
-  margin: 20px 0;
-  padding: 2px 20px;
-  border-left: 2px solid var(--ink-faint);
+  margin: var(--space-5) 0;
+  padding: var(--space-0-5) var(--space-5);
+  border-left: var(--border) solid var(--ink-faint);
   color: var(--ink-dim);
   font-style: italic;
 }
 .doc blockquote p {
-  margin: 8px 0;
+  margin: var(--space-2) 0;
 }
 
 /* tables are data — tighter sans at chrome size, for scanning inside the prose */
 .doc table {
   border-collapse: collapse;
-  margin: 20px 0;
+  margin: var(--space-5) 0;
   font-family: var(--sans);
-  font-size: 13.5px;
+  font-size: var(--text-lg);
   width: 100%;
 }
 .doc th {
   font-family: var(--sans);
-  font-size: 10.5px;
+  font-size: var(--text-xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   text-align: left;
   color: var(--ink-dim);
   border-bottom: 1px solid var(--line);
-  padding: 7px 12px 7px 0;
+  padding: var(--space-1-5) var(--space-3) var(--space-1-5) 0;
 }
 .doc td {
   border-bottom: 1px solid var(--line-soft);
-  padding: 8px 12px 8px 0;
+  padding: var(--space-2) var(--space-3) var(--space-2) 0;
   vertical-align: top;
-  line-height: 1.55;
+  line-height: var(--leading-normal);
 }
 
 .doc ul,
 .doc ol {
-  padding-left: 24px;
-  margin: 0 0 16px;
+  padding-left: var(--space-6);
+  margin: 0 0 var(--space-4);
 }
 .doc li {
-  margin-bottom: 6px;
+  margin-bottom: var(--space-1-5);
 }
 .doc li::marker {
   color: var(--ink-faint);
@@ -1213,7 +1345,7 @@ body.dragging .docpane {
 .doc hr {
   border: none;
   border-top: 1px solid var(--line);
-  margin: 36px 0;
+  margin: var(--space-8) 0;
 }
 
 /* ── terminal pane — always dark; the frame follows the theme ─────────────*/
@@ -1230,19 +1362,19 @@ body.dragging .docpane {
 }
 
 .term-header {
-  position: relative; /* anchors the ⚙ prefs popover */
+  position: relative; /* anchors the transient notice */
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 9px 14px;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3-5);
   border-bottom: 1px solid var(--line);
   background: var(--bg);
   flex: none;
 }
 .term-title {
   font-family: var(--sans);
-  font-size: 10.5px;
+  font-size: var(--text-xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.14em;
@@ -1254,35 +1386,35 @@ body.dragging .docpane {
 }
 .term-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   flex: none;
 }
 .term-actions button {
   font-family: var(--sans);
-  font-size: 12px;
+  font-size: var(--text-md);
   font-weight: 500;
   letter-spacing: 0.005em;
   color: var(--ink-dim);
   background: transparent;
   border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-3);
   white-space: nowrap;
   cursor: pointer;
   transition:
-    color 140ms,
-    border-color 140ms,
-    background 140ms;
+    color var(--dur-fast),
+    border-color var(--dur-fast),
+    background var(--dur-fast);
 }
 /* a narrow terminal pane: the buttons compact (never wrap their labels), and the
    title is the first thing to give */
 @container (max-width: 480px) {
   .term-actions button {
-    font-size: 11px;
-    padding: 4px 8px;
+    font-size: var(--text-sm);
+    padding: var(--space-1) var(--space-2);
   }
   .term-header {
-    padding: 8px 10px;
+    padding: var(--space-2) var(--space-2-5);
   }
 }
 @container (max-width: 380px) {
@@ -1314,9 +1446,14 @@ body.dragging .docpane {
   background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
+/* The gear holds a mark, not a word, so it has to centre its child. It carries
+   no padding of its own: `.term-actions button` is the more specific selector,
+   so the tighter padding this rule used to declare never actually applied —
+   keeping it would only claim a geometry the gear has never had. */
 .term-gear {
-  padding: 4px 8px;
-  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .term-gear.open {
   color: var(--hi);
@@ -1326,46 +1463,42 @@ body.dragging .docpane {
 /* transient refusal/help notices from tutor and external-tool actions */
 .term-notice {
   position: absolute;
-  top: calc(100% + 6px);
-  right: 10px;
-  left: 10px;
+  top: calc(100% + var(--space-1-5));
+  right: var(--space-2-5);
+  left: var(--space-2-5);
   z-index: 25;
+  text-align: left;
   font-family: var(--sans);
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: var(--text-md);
+  line-height: var(--leading-normal);
   color: var(--ink);
   background: var(--bg-panel);
   border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
   cursor: pointer;
-  box-shadow: 0 8px 22px var(--shadow-soft);
+  box-shadow: var(--elev-popover);
 }
 
+/* the prefs panel's INTERNAL layout only — the surface it sits on (portal,
+   dismissal, elevation, radius) belongs to .pop, since the panel is a real
+   popover now instead of a div hanging off the header's position: relative */
 .term-prefs {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 10px;
-  z-index: 30;
   width: 258px;
-  background: var(--bg-panel);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 13px;
+  padding: var(--space-3);
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  box-shadow: 0 10px 28px var(--shadow);
+  gap: var(--space-3);
 }
 .term-prefs-row {
   display: grid;
   grid-template-columns: 52px 1fr;
-  gap: 8px;
+  gap: var(--space-2);
   align-items: center;
 }
 .term-prefs-row label {
   font-family: var(--sans);
-  font-size: 10.5px;
+  font-size: var(--text-xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -1375,12 +1508,12 @@ body.dragging .docpane {
 .term-prefs-row input {
   width: 100%;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--ink);
   background: var(--bg);
   border: 1px solid var(--line);
-  border-radius: 5px;
-  padding: 5px 7px;
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-1-5);
 }
 .term-prefs-row input {
   grid-column: 2;
@@ -1395,20 +1528,20 @@ body.dragging .docpane {
 .term-prefs-launch-btn {
   flex: 1;
   font-family: var(--sans);
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 500;
   letter-spacing: 0.01em;
   color: var(--ink-dim);
   background: var(--bg);
   border: 1px solid var(--line);
-  border-radius: 5px;
-  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  padding: var(--space-1-5) var(--space-2);
   text-align: left;
   cursor: pointer;
   transition:
-    color 140ms,
-    border-color 140ms,
-    background 140ms;
+    color var(--dur-fast),
+    border-color var(--dur-fast),
+    background var(--dur-fast);
 }
 .term-prefs-launch-btn:hover:not(:disabled) {
   color: var(--hi);
@@ -1424,12 +1557,12 @@ body.dragging .docpane {
 .term-prefs-theme {
   display: grid;
   grid-template-columns: 52px 1fr;
-  gap: 8px;
+  gap: var(--space-2);
   align-items: center;
 }
 .term-prefs-theme > span {
   font-family: var(--sans);
-  font-size: 10.5px;
+  font-size: var(--text-xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -1437,27 +1570,27 @@ body.dragging .docpane {
 }
 .theme-seg {
   display: flex;
-  gap: 3px;
-  padding: 2px;
+  gap: var(--space-0-5);
+  padding: var(--space-0-5);
   background: var(--bg);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
 }
 .theme-seg button {
   flex: 1;
   font-family: var(--sans);
-  font-size: 10.5px;
+  font-size: var(--text-xs);
   font-weight: 500;
   letter-spacing: 0.01em;
   color: var(--ink-dim);
   background: transparent;
   border: none;
-  border-radius: 4px;
-  padding: 4px 0;
+  border-radius: var(--radius-xs);
+  padding: var(--space-1) 0;
   cursor: pointer;
   transition:
-    color 140ms,
-    background 140ms;
+    color var(--dur-fast),
+    background var(--dur-fast);
 }
 .theme-seg button:hover {
   color: var(--ink);
@@ -1465,25 +1598,25 @@ body.dragging .docpane {
 .theme-seg button.on {
   color: var(--hi);
   background: var(--bg-raised);
-  box-shadow: inset 0 0 0 1px var(--line);
+  box-shadow: inset 0 0 0 var(--border-hair) var(--line);
 }
 .term-prefs-note {
   margin: 0;
   font-family: var(--sans);
-  font-size: 11.5px;
-  line-height: 1.55;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
   color: var(--ink-dim);
 }
 .term-prefs-note code {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--text-xs);
   color: var(--ink);
 }
 
 .term-host {
   flex: 1;
   min-height: 0;
-  padding: 8px 4px 8px 10px;
+  padding: var(--space-2) var(--space-1) var(--space-2) var(--space-2-5);
   background: var(--term-bg);
 }
 .term-host .xterm {
@@ -1498,7 +1631,7 @@ body.dragging .docpane {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   font-family: var(--sans);
   color: var(--ink-dim);
 }
@@ -1510,7 +1643,7 @@ body.dragging .docpane {
 .boot-error pre {
   font-family: var(--mono);
   color: var(--ink-faint);
-  font-size: 12px;
+  font-size: var(--text-md);
 }
 .hint-line code {
   font-family: var(--mono);
@@ -1518,12 +1651,12 @@ body.dragging .docpane {
 }
 
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: var(--space-2-5);
+  height: var(--space-2-5);
 }
 ::-webkit-scrollbar-thumb {
   background: var(--line);
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--ink-faint);
@@ -1542,51 +1675,50 @@ body.dragging .docpane {
 }
 .welcome-inner {
   max-width: 580px;
-  padding: 76px 44px;
+  padding: 76px var(--space-10);
   align-self: start;
 }
 .welcome-mark {
-  font-size: 28px;
   color: var(--ink-faint);
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
 }
 .welcome h1 {
   font-family: var(--sans);
-  font-size: 30px;
+  font-size: var(--text-5xl);
   font-weight: 600;
   color: var(--hi);
-  margin: 0 0 12px;
+  margin: 0 0 var(--space-3);
   letter-spacing: -0.02em;
-  line-height: 1.22;
+  line-height: var(--leading-tight);
 }
 .welcome-sub {
   font-family: var(--sans);
   color: var(--ink-dim);
-  font-size: 14.5px;
-  line-height: 1.6;
-  margin: 0 0 32px;
+  font-size: var(--text-xl);
+  line-height: var(--leading-read);
+  margin: 0 0 var(--space-8);
 }
 .welcome-sub code,
 .welcome-foot code {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--text-md);
   background: var(--bg-deep);
   border: 1px solid var(--line-soft);
-  border-radius: 4px;
-  padding: 1.5px 6px;
+  border-radius: var(--radius-xs);
+  padding: var(--space-px) var(--space-1-5);
   color: var(--ink);
 }
 .welcome-steps {
-  margin: 0 0 30px;
-  padding-left: 22px;
+  margin: 0 0 var(--space-7);
+  padding-left: var(--space-5);
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--space-3-5);
 }
 .welcome-steps li {
   font-family: var(--sans);
-  font-size: 14.5px;
-  line-height: 1.6;
+  font-size: var(--text-xl);
+  line-height: var(--leading-read);
   color: var(--ink);
 }
 .welcome-steps li::marker {
@@ -1597,36 +1729,43 @@ body.dragging .docpane {
 }
 .welcome-btn-ref {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--text-sm);
   border: 1px solid var(--line);
-  border-radius: 4px;
-  padding: 1px 7px;
+  border-radius: var(--radius-xs);
+  padding: var(--space-px) var(--space-1-5);
   color: var(--ink-dim);
   white-space: nowrap;
 }
+/* one of these references a button that carries a mark rather than a word; the
+   chip has to become a box for it, or the SVG breaks the sentence's line */
+.welcome-btn-ref:has(.icon) {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
 .welcome-how {
-  margin: 0 0 30px;
+  margin: 0 0 var(--space-7);
 }
 .welcome-how-title {
   font-family: var(--sans);
-  font-size: 10.5px;
+  font-size: var(--text-xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.14em;
   color: var(--ink-dim);
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 .welcome-how ul {
   margin: 0;
-  padding-left: 22px;
+  padding-left: var(--space-5);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-2-5);
 }
 .welcome-how li {
   font-family: var(--sans);
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: var(--text-lg);
+  line-height: var(--leading-read);
   color: var(--ink-dim);
 }
 .welcome-how li::marker {
@@ -1640,8 +1779,8 @@ body.dragging .docpane {
 .welcome-foot {
   font-family: var(--sans);
   color: var(--ink-dim);
-  font-size: 12.5px;
-  line-height: 1.65;
+  font-size: var(--text-md);
+  line-height: var(--leading-read);
   border-top: 1px solid var(--line-soft);
-  padding-top: 18px;
+  padding-top: var(--space-4);
 }

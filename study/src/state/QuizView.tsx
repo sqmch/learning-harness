@@ -6,16 +6,22 @@ import {
   type QuizBank,
   type QuizHistoryEntry,
 } from "./parse";
+import { Icon, RecallMark, type RecallResult } from "../ui/icons";
+import { Tooltip } from "../ui/Tooltip";
 import type { FileState } from "./useRepoFile";
 
-// Monochrome recall glyphs — shape, never colour, carries the grade. Covers
-// every result the bank records; an unknown result falls back to the neutral dot.
-const RESULT_GLYPH: Record<string, string> = {
-  correct: "●",
-  partial: "◐",
-  wrong: "○",
-  tutored: "◎",
-  rescheduled: "·",
+// Monochrome recall marks — shape, never colour, carries the grade. The five
+// shapes are the ones the ● ◐ ○ ◎ · glyph set drew, now drawn as SVG instead of
+// typeset (ui/icons.tsx): fonts disagree about which half of ◐ is filled, and
+// several substitute a whole different face for it. The bank stores a free
+// string, so the map is also the guard — anything outside the recorded
+// vocabulary falls back to the neutral dot, as the glyph lookup did.
+const RESULT_MARK: Record<string, RecallResult> = {
+  correct: "correct",
+  partial: "partial",
+  wrong: "wrong",
+  tutored: "tutored",
+  rescheduled: "rescheduled",
 };
 const RESULT_WORD: Record<string, string> = {
   correct: "correct",
@@ -36,9 +42,9 @@ function dueLabel(over: number): string {
 function History({ history }: { history?: QuizHistoryEntry[] }) {
   if (!history || history.length === 0) {
     return (
-      <span className="q-hist q-hist-empty" title="not asked yet">
-        —
-      </span>
+      <Tooltip content="not asked yet">
+        <span className="q-hist q-hist-empty">—</span>
+      </Tooltip>
     );
   }
   return (
@@ -46,13 +52,17 @@ function History({ history }: { history?: QuizHistoryEntry[] }) {
       {history.map((h, i) => {
         const r = h.result ?? "";
         return (
-          <span
+          // A graded entry the tutor annotated runs to prose; date · grade on
+          // its own is a label, and widening it would leave the tip mostly air.
+          <Tooltip
             key={i}
-            className={`q-glyph q-${r || "unknown"}`}
-            title={`${h.date ?? "?"} · ${(RESULT_WORD[r] ?? r) || "?"}${h.note ? ` — ${h.note}` : ""}`}
+            content={`${h.date ?? "?"} · ${(RESULT_WORD[r] ?? r) || "?"}${h.note ? ` — ${h.note}` : ""}`}
+            wide={Boolean(h.note)}
           >
-            {RESULT_GLYPH[r] ?? "·"}
-          </span>
+            <span className={`q-glyph q-${r || "unknown"}`}>
+              <RecallMark result={RESULT_MARK[r] ?? "rescheduled"} />
+            </span>
+          </Tooltip>
         );
       })}
     </span>
@@ -69,13 +79,20 @@ function ItemRow({ row, upcoming }: { row: DueRow; upcoming?: boolean }) {
         <span className="q-line1-left">
           <span className="q-id">{item.id}</span>
           {item.module && <span className="q-mod">{item.module}</span>}
-          <span className="q-when">{dueLabel(over)}</span>
+          {/* state.css has tinted `.q-when.overdue` since it was written, but
+              nothing ever set the class — so a backlog the tutor is meant to
+              call out ("7 items due; asking the 3 most overdue") read in the
+              same ink as an item due today. The boundary is dueLabel's: past
+              its date, not merely arrived at it. */}
+          <span className={over > 0 ? "q-when overdue" : "q-when"}>{dueLabel(over)}</span>
           {upcoming && item.due && <span className="q-due">{item.due}</span>}
         </span>
         <span className="q-line1-right">
-          <span className="q-interval" title="current spacing interval, in days">
-            {typeof item.interval === "number" ? `${item.interval}d` : "—"}
-          </span>
+          <Tooltip content="current spacing interval, in days">
+            <span className="q-interval">
+              {typeof item.interval === "number" ? `${item.interval}d` : "—"}
+            </span>
+          </Tooltip>
           <History history={item.history} />
         </span>
       </div>
@@ -97,7 +114,9 @@ export function QuizView(props: { bank: QuizBank | null; state: FileState; today
   if (state === "missing" || !bank) {
     return (
       <div className="state-empty">
-        <div className="state-empty-mark">◇</div>
+        <div className="state-empty-mark">
+          <Icon name="diamond" size="lg" />
+        </div>
         <p>
           No quiz bank yet. The tutor banks recall questions as you finish modules; they surface
           here, spaced by how well you answered.
@@ -124,31 +143,31 @@ export function QuizView(props: { bank: QuizBank | null; state: FileState; today
         <div className="q-legend">
           <span className="q-legend-item">
             <span className="q-glyph q-correct" aria-hidden>
-              ●
+              <RecallMark result="correct" />
             </span>{" "}
             correct
           </span>
           <span className="q-legend-item">
             <span className="q-glyph q-partial" aria-hidden>
-              ◐
+              <RecallMark result="partial" />
             </span>{" "}
             partial
           </span>
           <span className="q-legend-item">
             <span className="q-glyph q-wrong" aria-hidden>
-              ○
+              <RecallMark result="wrong" />
             </span>{" "}
             wrong
           </span>
           <span className="q-legend-item">
             <span className="q-glyph q-tutored" aria-hidden>
-              ◎
+              <RecallMark result="tutored" />
             </span>{" "}
             tutored
           </span>
           <span className="q-legend-item">
             <span className="q-glyph q-rescheduled" aria-hidden>
-              ·
+              <RecallMark result="rescheduled" />
             </span>{" "}
             rescheduled
           </span>
@@ -170,7 +189,7 @@ export function QuizView(props: { bank: QuizBank | null; state: FileState; today
             onClick={() => setShowScheduled((o) => !o)}
             aria-expanded={showScheduled}
           >
-            <span className="state-collapse-caret">{showScheduled ? "▾" : "▸"}</span>
+            <Icon name={showScheduled ? "collapse" : "expand"} size="xs" />
             scheduled ahead · {scheduled.length}
           </button>
           {showScheduled && (
